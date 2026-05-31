@@ -93,9 +93,8 @@
 
   <worldbody>
     <body name="lh_forearm" childclass="left_hand" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5">
-      <joint name="lh_forearm_tx"   type="slide" axis="0 1 0"  range="-1 1"      damping="5" armature="0" frictionloss="0"/>
-      <joint name="lh_forearm_ty"   type="slide" axis="0 0 1"  range="-0.05 0.1" damping="5" armature="0" frictionloss="0"/>
-      <joint name="lh_forearm_roll" type="hinge" axis="-1 0 0" range="-0.5 0.5"  damping="2" armature="0" frictionloss="0"/>
+      <joint name="lh_forearm_ty"   type="slide" axis="0 1 0"  range="-1 1"       damping="5" armature="0" frictionloss="0"/>
+      <joint name="lh_forearm_roll" type="hinge" axis="0 0 1"  range="-0.25 0.25" damping="2" armature="0" frictionloss="0"/>
       <inertial mass="3" pos="0 0 0.09" diaginertia="0.0138 0.0138 0.00744"/>
       <geom class="lh_plastic_visual" mesh="lh_forearm_0" material="lh_gray"/>
       <geom class="lh_plastic_visual" mesh="lh_forearm_1"/>
@@ -341,8 +340,7 @@
     <position name="lh_A_LFJ4" joint="lh_LFJ4" class="lh_knuckle"/>
     <position name="lh_A_LFJ3" joint="lh_LFJ3" class="lh_proximal"/>
     <position name="lh_A_LFJ0" tendon="lh_LFJ0" class="lh_middle_distal"/>
-    <position name="lh_A_forearm_tx"   joint="lh_forearm_tx"   kp="300" ctrlrange="-1 1"      forcerange="-50 50"/>
-    <position name="lh_A_forearm_ty"   joint="lh_forearm_ty"   kp="300" ctrlrange="-0.05 0.1" forcerange="-50 50"/>
-    <position name="lh_A_forearm_roll" joint="lh_forearm_roll" kp="100" ctrlrange="-0.5 0.5"  forcerange="-20 20"/>
+    <position name="lh_A_forearm_ty"   joint="lh_forearm_ty"   kp="300" ctrlrange="-1 1"       forcerange="-50 50"/>
+    <position name="lh_A_forearm_roll" joint="lh_forearm_roll" kp="300" ctrlrange="-0.25 0.25" forcerange="-20 20"/>
   </actuator>
 </mujoco>

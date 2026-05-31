@@ -1,1 +1,2 @@
-mjpython motiva/environment/environment.py
+source .venv/bin/activate
+mjpython motiva/main.py
