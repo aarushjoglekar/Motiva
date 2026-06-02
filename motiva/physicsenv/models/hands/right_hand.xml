@@ -341,8 +341,8 @@
     <position name="rh_A_LFJ5" joint="rh_LFJ5" class="rh_metacarpal"/>
     <position name="rh_A_LFJ4" joint="rh_LFJ4" class="rh_knuckle"/>
     <position name="rh_A_LFJ3" joint="rh_LFJ3" class="rh_proximal"/>
-    <position name="rh_A_LFJ0" tendon="rh_LFJ0" class="rh_middle_distal" ctrlrange="-1 1"/>
-    <position name="rh_A_forearm_ty"   joint="rh_forearm_ty"   kp="300" damping="45" forcerange="-50 50"/>
+    <position name="rh_A_LFJ0" tendon="rh_LFJ0" class="rh_middle_distal"/>
+    <position name="rh_A_forearm_ty"   joint="rh_forearm_ty"   kp="300" damping="45" ctrlrange="-1 1" forcerange="-50 50"/>
     <motor name="rh_A_forearm_tz"   joint="rh_forearm_tz" ctrlrange="-0.688 1.312" gear="25" forcerange="-30 30"/>
     <position name="rh_A_forearm_roll" joint="rh_forearm_roll" kp="300" ctrlrange="-0.25 0.25" forcerange="-20 20"/>
   </actuator>

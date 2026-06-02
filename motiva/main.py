@@ -9,7 +9,7 @@ with Environment(song) as env:
     env.render()
     time.sleep(1)
 
-    env.reset()
+    observation = env.reset()
     done = False
     while env.viewer_running() and not done:
         observation, reward, done = env.step(action=np.zeros(46))

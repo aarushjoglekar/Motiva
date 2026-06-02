@@ -1,6 +1,7 @@
 import mujoco
 import os
 import numpy as np
+import physicsenv.constants as constants
 
 class PhysicsEnv:
     def __init__(self):
@@ -28,6 +29,25 @@ class PhysicsEnv:
         self.action_lows  = self.model.actuator_ctrlrange[:, 0]
         self.action_highs = self.model.actuator_ctrlrange[:, 1]
 
+        # piano joint ids
+        black_keys = { 1, 3, 6, 8, 10 }
+
+        self.piano_joint_ids = [
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, key_name)
+            for key_name in [
+                f"{'black' if i % 12 in black_keys else 'white'}_joint_{i}"
+                for i in range(88)
+            ]
+        ]
+
+        # hand joint ids
+        self.hand_joint_ids = [
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+            for joint_name in [
+                f"{hand}_{joint}" for hand in ["rh", "lh"] for joint in constants.JOINTS
+            ]
+        ]
+
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range
     def step(self, action: np.ndarray):
@@ -53,9 +73,9 @@ class PhysicsEnv:
         return self.get_obs()
 
     def get_obs(self):
-        # qpos -> all joint positions (each hand + piano keys)
+        # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
-        return self.data.qpos, self.data.xpos[self.forearm_ids].ravel()
+        return self.data.qpos[self.piano_joint_ids], self.data.qpos[self.hand_joint_ids], self.data.xpos[self.forearm_ids].ravel() # TODO SCALE FROM 0 to 1
 
     def render(self):
         if self.viewer is None:
