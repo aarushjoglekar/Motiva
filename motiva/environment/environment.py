@@ -15,7 +15,7 @@ class Environment:
     def step(self, action: np.ndarray):
         obs = self.physicsenv.step(action)
         song_obs, done = self.song.sample_at((time.perf_counter_ns() - self.start_time) / 1e9)
-        return np.concatenate((obs + song_obs)), self.get_reward(), (time.perf_counter_ns() - self.start_time) / 1e9, done
+        return np.concatenate((obs + song_obs)), self.get_reward(), done
     
     def get_reward(self):
         return None
