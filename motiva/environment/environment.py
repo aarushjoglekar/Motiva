@@ -35,7 +35,7 @@ class Environment:
         scaled_action = self.action_lows + (action + 1) * 0.5 * (self.action_highs - self.action_lows)
 
         # pd position control
-        self.data.ctrl[:] = scaled_action
+        # self.data.ctrl[:] = scaled_action
 
         # position to force control for motors
         r_target_pos = scaled_action[self.rz_actuator_id]
