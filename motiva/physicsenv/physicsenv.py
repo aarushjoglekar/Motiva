@@ -55,7 +55,7 @@ class PhysicsEnv:
     def get_obs(self):
         # qpos -> all joint positions (each hand + piano keys)
         # xpos -> forearm positions
-        return np.concatenate((self.data.qpos, self.data.xpos[self.forearm_ids].ravel()))
+        return self.data.qpos, self.data.xpos[self.forearm_ids].ravel()
 
     def render(self):
         if self.viewer is None:
@@ -70,14 +70,6 @@ class PhysicsEnv:
 
     def viewer_running(self):
         return self.viewer is None or self.viewer.is_running()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        if self.viewer is not None:
-            self.viewer.close()
-            self.viewer = None
 
     def initialize_models(self, hover_offset:float=0.12, forward_offset:float=0.4):
         DIR = os.path.dirname(os.path.abspath(__file__))

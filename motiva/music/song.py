@@ -15,13 +15,13 @@ class Song:
     def __init__(self, song_data: list):
         self.song_data = song_data
 
-    def sample_at(self, time):
+    def sample_at(self, time: float):
         index = Song.time_to_index(time)
-
-        if index > len(self.song_data):
-            return None
-        
-        return self.song_data[index]
+        done = index + 1== len(self.song_data)
+        return (self.song_data[index]["active_notes"], self.song_data[index]["active_fingers"]), done
+    
+    def total_time(self):
+        return len(self.song_data) / Song.RESOLUTION
 
     @staticmethod
     def from_txt(name: str):
