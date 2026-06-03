@@ -4,24 +4,32 @@ from music import constants
 
 class Song:
     RESOLUTION = 20 # per second
+    LOOKAHEAD = 10
 
-    TEMPLATE = [{
-        "active_notes": np.zeros(88),
-        "active_fingers": np.zeros(10)
-    }]
+    NUM_PIANO_NOTES = 88
+    NUM_ACTIVE_FINGERS = 10
+    NUM_FEATURES = NUM_PIANO_NOTES + NUM_ACTIVE_FINGERS
 
     CHOPIN_WALTZ_OP69_NO1 = "chopin_waltz_op69_no1"
 
-    def __init__(self, song_data: list):
+    def __init__(self, song_data: np.ndarray):
         self.song_data = song_data
+        self.length = len(self.song_data)
 
-    def sample_at(self, time: float): #TODO LOOKAHEAD
+    def sample_at(self, time: float):
         index = Song.time_to_index(time)
-        done = index + 1 == len(self.song_data)
-        return (self.song_data[index]["active_notes"], self.song_data[index]["active_fingers"]), done
+        end = index + Song.LOOKAHEAD
+        done = (self.length - index - 1) == 0
+
+        if end <= self.length:
+            samples = self.song_data[index:end]
+        else:
+            samples = np.pad(self.song_data[index:], ((0, end - self.length), (0, 0)), mode='constant')
+
+        return samples.ravel(), done
     
     def total_time(self):
-        return len(self.song_data) / Song.RESOLUTION
+        return self.length / Song.RESOLUTION
 
     @staticmethod
     def from_txt(name: str):
@@ -58,13 +66,13 @@ class Song:
 
                 diff = end_time_index - len(song_data)
                 if diff > 0:
-                    song_data += Song.TEMPLATE * diff
+                    song_data += [np.zeros(Song.NUM_FEATURES) for _ in range(diff)]
 
                 for index in range(start_time_index, end_time_index):
-                    song_data[index]["active_notes"][active_note] = 1
-                    song_data[index]["active_fingers"][active_finger] = 1
+                    song_data[index][active_note] = 1
+                    song_data[index][active_finger + Song.NUM_PIANO_NOTES] = 1
 
-        return Song(song_data)
+        return Song(np.array(song_data))
     
     @staticmethod
     def time_to_index(time: float):

@@ -128,7 +128,7 @@ class PhysicsEnv:
             helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
             helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),
             helpers.rescale(self.data.xpos[self.forearm_ids].ravel(), self.forearm_pos_scale, self.forearm_pos_offset)
-         )
+        )
 
     def render(self):
         if self.viewer is None:

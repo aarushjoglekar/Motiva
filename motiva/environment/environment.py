@@ -22,8 +22,8 @@ class Environment:
         song_obs, done = self.song.sample_at((time.perf_counter_ns() - self.start_time) / 1e9)
         return self.get_obs(env_obs, song_obs), self.get_reward(env_obs[0], song_obs[0]), done
     
-    def get_obs(self, env_obs, song_obs):
-        return np.concatenate((env_obs + song_obs))
+    def get_obs(self, env_obs: tuple, song_obs: np.ndarray):
+        return np.concatenate((*env_obs, song_obs))
     
     def get_reward(self, piano_actual_state, piano_goal_state):
         # key press reward
