@@ -15,9 +15,9 @@ class Song:
     def __init__(self, song_data: list):
         self.song_data = song_data
 
-    def sample_at(self, time: float):
+    def sample_at(self, time: float): #TODO LOOKAHEAD
         index = Song.time_to_index(time)
-        done = index + 1== len(self.song_data)
+        done = index + 1 == len(self.song_data)
         return (self.song_data[index]["active_notes"], self.song_data[index]["active_fingers"]), done
     
     def total_time(self):

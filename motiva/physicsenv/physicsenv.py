@@ -2,6 +2,7 @@ import mujoco
 import os
 import numpy as np
 import physicsenv.constants as constants
+import helpers.helpers as helpers
 
 class PhysicsEnv:
     def __init__(self):
@@ -9,12 +10,44 @@ class PhysicsEnv:
         self.model, self.data = self.initialize_models()
         self.viewer = None
         
-        # joint/actuator ids
+        # forearm body ids
         self.forearm_ids = [
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, forearm_name)
-            for forearm_name in ["lh_forearm", "rh_forearm"]
+            for forearm_name in ["rh_forearm", "lh_forearm"]
         ]
 
+        # tz actuator and joint ids
+        self.rz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rh_A_forearm_tz")
+        self.lz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_tz")
+        self.rz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tz")
+        self.lz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tz")
+
+        # ty joint ids
+        ry_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_ty")
+        ly_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_ty")
+
+        # forearm body rescaling
+        rh_base = self.model.body_pos[self.forearm_ids[0]]
+        lh_base = self.model.body_pos[self.forearm_ids[1]]
+
+        # x min/max is constant because it does not move
+        forearm_pos_min = np.array([
+            rh_base[0], rh_base[1] + self.model.jnt_range[ry_joint_id, 0], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 0],
+            lh_base[0], lh_base[1] + self.model.jnt_range[ly_joint_id, 0], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 0],
+        ])
+        forearm_pos_max = np.array([
+            rh_base[0], rh_base[1] + self.model.jnt_range[ry_joint_id, 1], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 1],
+            lh_base[0], lh_base[1] + self.model.jnt_range[ly_joint_id, 1], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 1],
+        ])
+
+        self.forearm_pos_scale, self.forearm_pos_offset = helpers.make_rescaler(
+            forearm_pos_min,
+            forearm_pos_max,
+            np.zeros(len(forearm_pos_min)) - 1,
+            np.ones(len(forearm_pos_min))
+        )
+
+        # tz actuator and joint ids
         self.rz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rh_A_forearm_tz")
         self.lz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_tz")
         self.rz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tz")
@@ -40,6 +73,14 @@ class PhysicsEnv:
             ]
         ]
 
+        # piano joint rescaling
+        self.piano_scale, self.piano_offset = helpers.make_rescaler(
+            self.model.jnt_range[self.piano_joint_ids, 0],
+            self.model.jnt_range[self.piano_joint_ids, 1],
+            np.zeros(len(self.piano_joint_ids)) - 1,
+            np.ones(len(self.piano_joint_ids))
+        ) 
+
         # hand joint ids
         self.hand_joint_ids = [
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
@@ -47,6 +88,14 @@ class PhysicsEnv:
                 f"{hand}_{joint}" for hand in ["rh", "lh"] for joint in constants.JOINTS
             ]
         ]
+
+        # hand joint rescaling
+        self.hand_joint_scale, self.hand_joint_offset = helpers.make_rescaler(
+            self.model.jnt_range[self.hand_joint_ids, 0],
+            self.model.jnt_range[self.hand_joint_ids, 1],
+            np.zeros(len(self.hand_joint_ids)) - 1,
+            np.ones(len(self.hand_joint_ids))
+        )
 
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range
@@ -75,12 +124,16 @@ class PhysicsEnv:
     def get_obs(self):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
-        return self.data.qpos[self.piano_joint_ids], self.data.qpos[self.hand_joint_ids], self.data.xpos[self.forearm_ids].ravel() # TODO SCALE FROM 0 to 1
+        return (
+            helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
+            helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),
+            helpers.rescale(self.data.xpos[self.forearm_ids].ravel(), self.forearm_pos_scale, self.forearm_pos_offset)
+         )
 
     def render(self):
         if self.viewer is None:
             self.viewer = mujoco.viewer.launch_passive(
-                self.model, self.data, show_left_ui=False, show_right_ui=True
+                self.model, self.data, show_left_ui=False, show_right_ui=False
             )
         self.viewer.sync()
 
