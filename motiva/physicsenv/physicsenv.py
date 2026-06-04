@@ -13,8 +13,8 @@ class PhysicsEnv:
         
         # forearm body ids
         self.forearm_ids = [
-            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, forearm_name)
-            for forearm_name in ["rh_forearm", "lh_forearm"]
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"{hand}_forearm")
+            for hand in constants.HANDS
         ]
 
         # tz actuator and joint ids
@@ -86,7 +86,7 @@ class PhysicsEnv:
         self.hand_joint_ids = [
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
             for joint_name in [
-                f"{hand}_{joint}" for hand in ["rh", "lh"] for joint in constants.JOINTS
+                f"{hand}_{joint}" for hand in constants.HANDS for joint in constants.JOINTS
             ]
         ]
 
@@ -97,6 +97,12 @@ class PhysicsEnv:
             np.zeros(len(self.hand_joint_ids)) - 1,
             np.ones(len(self.hand_joint_ids))
         )
+
+        # finger site ids
+        self.finger_site_ids = np.array([
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, finger_site)
+            for finger_site in constants.FINGER_SITE
+        ])
 
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range

@@ -27,3 +27,22 @@ JOINTS = [
     "THJ2",
     "THJ1",
 ]
+
+# ordered to match 1-10 convention from pig dataset
+FINGER_SITE = [
+    "lh_lfdistal_tip",
+    "lh_rfdistal_tip",
+    "lh_mfdistal_tip",
+    "lh_ffdistal_tip",
+    "lh_thdistal_tip",
+    "rh_thdistal_tip",
+    "rh_ffdistal_tip",
+    "rh_mfdistal_tip",
+    "rh_rfdistal_tip",
+    "rh_lfdistal_tip"
+]
+
+HANDS = [
+    "rh",
+    "lh"
+]

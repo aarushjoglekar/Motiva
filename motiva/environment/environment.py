@@ -40,7 +40,7 @@ class Environment:
         key_press_reward = accurate_key_presses - false_positive_penalty
 
         # finger close to key reward
-        np.where(active_fingers == 1)[0]
+        # print(self.physicsenv.data.site_xpos[self.physicsenv.finger_site_ids])
 
         # energy efficiency penalty
         joint_torques = self.physicsenv.data.qfrc_actuator[self.physicsenv.hand_joint_ids]

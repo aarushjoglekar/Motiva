@@ -162,6 +162,7 @@
                   <joint name="rh_FFJ1" class="rh_middle_distal"/>
                   <geom class="rh_plastic_visual" mesh="rh_f_distal_pst"/>
                   <geom class="rh_plastic_collision" type="mesh" mesh="rh_f_distal_pst"/>
+                  <site name="rh_ffdistal_tip" pos="0 0 0.027" size="0.005" rgba="1 0 0 0"/>
                 </body>
               </body>
             </body>
@@ -191,6 +192,7 @@
                   <joint name="rh_MFJ1" class="rh_middle_distal"/>
                   <geom class="rh_plastic_visual" mesh="rh_f_distal_pst"/>
                   <geom class="rh_plastic_collision" type="mesh" mesh="rh_f_distal_pst"/>
+                  <site name="rh_mfdistal_tip" pos="0 0 0.027" size="0.005" rgba="1 0 0 0"/>
                 </body>
               </body>
             </body>
@@ -220,6 +222,7 @@
                   <joint name="rh_RFJ1" class="rh_middle_distal"/>
                   <geom class="rh_plastic_visual" mesh="rh_f_distal_pst"/>
                   <geom class="rh_plastic_collision" type="mesh" mesh="rh_f_distal_pst"/>
+                  <site name="rh_rfdistal_tip" pos="0 0 0.027" size="0.005" rgba="1 0 0 0"/>
                 </body>
               </body>
             </body>
@@ -256,6 +259,7 @@
                     <joint name="rh_LFJ1" class="rh_middle_distal"/>
                     <geom class="rh_plastic_visual" mesh="rh_f_distal_pst"/>
                     <geom class="rh_plastic_collision" type="mesh" mesh="rh_f_distal_pst"/>
+                    <site name="rh_lfdistal_tip" pos="0 0 0.027" size="0.005" rgba="1 0 0 0"/>
                   </body>
                 </body>
               </body>
@@ -287,6 +291,7 @@
                     <joint name="rh_THJ1" class="rh_thdistal"/>
                     <geom class="rh_plastic_visual" mesh="rh_th_distal_pst"/>
                     <geom class="rh_plastic_collision" type="mesh" mesh="rh_th_distal_pst"/>
+                    <site name="rh_thdistal_tip" pos="0 0 0.032" size="0.005" rgba="1 0 0 0"/>
                   </body>
                 </body>
               </body>
