@@ -12,9 +12,10 @@ class Song:
 
     CHOPIN_WALTZ_OP69_NO1 = "chopin_waltz_op69_no1"
 
-    def __init__(self, song_data: np.ndarray):
-        self.song_data = song_data
-        self.length = len(self.song_data)
+    def __init__(self, data: np.ndarray, fingers_to_keys_data: np.ndarray):
+        self.data = data
+        self.fingers_to_keys_data = fingers_to_keys_data
+        self.length = len(self.data)
 
     def sample_at(self, time: float):
         index = Song.time_to_index(time)
@@ -22,11 +23,13 @@ class Song:
         done = (self.length - index - 1) == 0
 
         if end <= self.length:
-            samples = self.song_data[index:end]
+            samples = self.data[index:end]
         else:
-            samples = np.pad(self.song_data[index:], ((0, end - self.length), (0, 0)), mode='constant')
+            samples = np.pad(self.data[index:], ((0, end - self.length), (0, 0)), mode='constant')
 
-        return samples.ravel(), done
+        fingers_to_keys_sample = self.fingers_to_keys_data[index]
+
+        return samples.ravel(), fingers_to_keys_sample, done
     
     def total_time(self):
         return self.length / Song.RESOLUTION
@@ -35,7 +38,8 @@ class Song:
     def from_txt(name: str):
         DIR = os.path.dirname(os.path.abspath(__file__))
         with open(f"{DIR}/songs/{name}/{name}.txt") as file:
-            song_data = []
+            data = []
+            fingers_to_keys_data = []
 
             first_line = True
             for line in file:
@@ -64,15 +68,17 @@ class Song:
 
                 active_finger = constants.FINGER[int(raw_finger)]
 
-                diff = end_time_index - len(song_data)
+                diff = end_time_index - len(data)
                 if diff > 0:
-                    song_data += [np.zeros(Song.NUM_FEATURES) for _ in range(diff)]
+                    data += [np.zeros(Song.NUM_FEATURES) for _ in range(diff)]
+                    fingers_to_keys_data += [(np.zeros(Song.NUM_ACTIVE_FINGERS) - 1) for _ in range(diff)]
 
                 for index in range(start_time_index, end_time_index):
-                    song_data[index][active_note] = 1
-                    song_data[index][active_finger + Song.NUM_PIANO_NOTES] = 1
+                    data[index][active_note] = 1
+                    data[index][active_finger + Song.NUM_PIANO_NOTES] = 1
+                    fingers_to_keys_data[index][active_finger] = active_note
 
-        return Song(np.array(song_data))
+        return Song(np.array(data, dtype=int), np.array(fingers_to_keys_data, dtype=int))
     
     @staticmethod
     def time_to_index(time: float):

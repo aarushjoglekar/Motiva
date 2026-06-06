@@ -12,9 +12,7 @@ def rescale(val: float | np.ndarray, scale: float | np.ndarray, offset: float | 
     return val * scale + offset
 
 # scales reward with a gaussian
-def proximity_reward(x, lower:float, upper:float, margin:float, value_at_margin:float):
-    if lower <= x <= upper:
-        return 1.0
-    diff = (lower - x if x < lower else x - upper) / margin
+def proximity_reward(x: float | np.ndarray, lower: float, upper: float, margin: float, value_at_margin: float):
     scale = np.sqrt(-2 * np.log(value_at_margin))
-    return float(np.exp(-0.5 * (diff * scale) ** 2))
+    diff = np.where(x < lower, lower - x, np.where(x > upper, x - upper, 0.0)) / margin
+    return np.where((lower <= x) & (x <= upper), 1.0, np.exp(-0.5 * (diff * scale) ** 2))

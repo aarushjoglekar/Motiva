@@ -63,8 +63,8 @@ class PhysicsEnv:
         self.action_lows  = self.model.actuator_ctrlrange[:, 0]
         self.action_highs = self.model.actuator_ctrlrange[:, 1]
 
-        # piano joint ids
-        black_keys = { 1, 3, 6, 8, 10 }
+        # piano joint/site ids
+        black_keys = { 1, 4, 6, 9, 11 }
 
         self.piano_joint_ids = [
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, key_name)
@@ -73,6 +73,14 @@ class PhysicsEnv:
                 for i in range(88)
             ]
         ]
+
+        self.piano_site_ids = np.array([
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+            for site_name in [
+                f"{'black' if i % 12 in black_keys else 'white'}_key_site_{i}"
+                for i in range(88)
+            ]
+        ], dtype=int)
 
         # piano joint rescaling
         self.piano_scale, self.piano_offset = helpers.make_rescaler(
@@ -102,7 +110,7 @@ class PhysicsEnv:
         self.finger_site_ids = np.array([
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, finger_site)
             for finger_site in constants.FINGER_SITE
-        ])
+        ], dtype=int)
 
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range

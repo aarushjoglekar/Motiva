@@ -5,15 +5,15 @@ import time
 
 song = Song.from_txt(Song.CHOPIN_WALTZ_OP69_NO1)
 
-with Environment(song) as env:
-    env.render()
-    time.sleep(1)
+with Environment(song, True) as env:
+
+    if True: # should_render based on training
+        time.sleep(1)
 
     observation = env.reset()
     done = False
     while env.viewer_running() and not done:
         observation, reward, done = env.step(action=np.zeros(46))
-        env.render()
 
         if done:
             time.sleep(2)
