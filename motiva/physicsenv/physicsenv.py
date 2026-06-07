@@ -3,7 +3,6 @@ import os
 import numpy as np
 import physicsenv.constants as constants
 import helpers.helpers as helpers
-import glfw
 
 class PhysicsEnv:
     def __init__(self):
