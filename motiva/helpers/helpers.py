@@ -1,7 +1,7 @@
 import numpy as np
 
 # prepares scale and offset for rescale
-def make_rescaler(old_min, old_max , new_min, new_max):
+def make_rescaler(old_min: np.ndarray, old_max: np.ndarray , new_min: np.ndarray, new_max: np.ndarray):
     diff = old_max - old_min
     scale = np.where(diff == 0, 1, (new_max - new_min) / np.where(diff == 0, 1, diff))
     offset = np.where(diff == 0, 0, new_min - old_min * scale)

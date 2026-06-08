@@ -4,8 +4,8 @@ import fluidsynth
 import numpy as np
 
 class PianoAudio:
-    PRESS_THRESHOLD = 0.3
-    MAX_QVEL = 5
+    PRESS_THRESHOLD = 0.15
+    MAX_QVEL = 3
 
     def __init__(self, play_audio: bool, record_midi: bool, midi_path:str):
         self.play_audio = play_audio
