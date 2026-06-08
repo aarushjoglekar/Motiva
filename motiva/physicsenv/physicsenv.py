@@ -47,12 +47,6 @@ class PhysicsEnv:
             np.ones(len(forearm_pos_min))
         )
 
-        # tz actuator and joint ids
-        self.rz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rh_A_forearm_tz")
-        self.lz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_tz")
-        self.rz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tz")
-        self.lz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tz")
-
         # gains for the tz joints in both arms
         self.z_kP = 3
         self.z_kD = 0.7
