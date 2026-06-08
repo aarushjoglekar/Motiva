@@ -37,7 +37,7 @@ class Song:
     @staticmethod
     def from_txt(name: str):
         DIR = os.path.dirname(os.path.abspath(__file__))
-        with open(f"{DIR}/songs/{name}/{name}.txt") as file:
+        with open(os.path.join(DIR, f"songs/{name}/{name}.txt")) as file:
             data = []
             fingers_to_keys_data = []
 

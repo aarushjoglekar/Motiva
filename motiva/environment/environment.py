@@ -1,5 +1,6 @@
 from physicsenv.physicsenv import PhysicsEnv
 from music.song import Song
+from music.pianoaudio import PianoAudio
 import time
 import numpy as np
 import helpers.helpers as helpers
@@ -9,11 +10,16 @@ class Environment:
         self.physicsenv = PhysicsEnv()
         self.song = song
         self.should_render = should_render
+        self.piano_audio = None
 
         if should_render:
             self.physicsenv.render()
 
-    def reset(self):
+    def reset(self, play_audio:bool, record_midi:bool, midi_path: str):
+        if self.piano_audio is not None:
+            self.piano_audio.save()
+        self.piano_audio = PianoAudio(play_audio, record_midi, midi_path)
+
         self.physicsenv.reset()
         self.start_time = time.perf_counter_ns()
 
@@ -23,13 +29,22 @@ class Environment:
         return self.get_obs(env_obs, song_obs)
 
     def step(self, action: np.ndarray):
+        episode_time = (time.perf_counter_ns() - self.start_time) / 1e9
+
         env_obs = self.physicsenv.step(action)
-        song_obs, fingers_to_keys, done = self.song.sample_at((time.perf_counter_ns() - self.start_time) / 1e9)
+        song_obs, fingers_to_keys, done = self.song.sample_at(episode_time)
 
         if self.should_render:
             self.physicsenv.render()
 
-        return self.get_obs(env_obs, song_obs), self.get_reward(env_obs[0], song_obs[:Song.NUM_PIANO_NOTES], song_obs[Song.NUM_PIANO_NOTES:Song.NUM_FEATURES], fingers_to_keys), done # type: ignore
+        arr = self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids]
+        better = arr[arr > 1e-2]
+        # print(str(better) + "\n" if len(better) != 0 else "", end="")
+
+        # if self.piano_audio is not None:
+            # self.piano_audio.update(env_obs[0], 0, episode_time)
+
+        return self.get_obs(env_obs, song_obs), self.get_reward(env_obs[0], song_obs[:Song.NUM_PIANO_NOTES], song_obs[Song.NUM_PIANO_NOTES:Song.NUM_FEATURES], fingers_to_keys), done
     
     def get_obs(self, env_obs: tuple, song_obs: np.ndarray):
         return np.concatenate((*env_obs, song_obs))
@@ -44,7 +59,11 @@ class Environment:
             margin=0.5,
             value_at_margin=0.1
         )
-        false_positive_penalty = 0.5 * np.any(piano_state_error < 0)
+
+        max_joint_range = self.physicsenv.model.jnt_range[self.physicsenv.piano_joint_ids, 1]
+        key_is_sounding = piano_actual_state >= (max_joint_range - np.deg2rad(0.5))
+        false_positive_penalty = 0.5 * np.any(key_is_sounding & (piano_goal_state == 0))
+
         key_press_reward = accurate_key_presses - false_positive_penalty
 
         # finger close to key reward

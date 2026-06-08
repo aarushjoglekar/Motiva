@@ -2,3 +2,5 @@ __pycache__/
 .venv
 PianoFingeringDataset
 motiva/music/songs
+installation_reqs.txt
+.DS_Store

@@ -120,24 +120,13 @@ class PhysicsEnv:
         # pd position control
         self.data.ctrl[:] = scaled_action
 
-        # position to force control for motors
-        r_target_pos = scaled_action[self.rz_actuator_id]
-        r_current_pos = self.data.qpos[self.rz_joint_id]
-        r_current_vel = self.data.qvel[self.rz_joint_id]
-
-        l_target_pos = scaled_action[self.lz_actuator_id]
-        l_current_pos = self.data.qpos[self.lz_joint_id]
-        l_current_vel = self.data.qvel[self.lz_joint_id]
-
-        self.data.ctrl[self.rz_actuator_id] = self.z_kP * (r_target_pos - r_current_pos) - self.z_kD * r_current_vel + self.z_kS
-        self.data.ctrl[self.lz_actuator_id] = self.z_kP * (l_target_pos - l_current_pos) - self.z_kD * l_current_vel + self.z_kS
-
         mujoco.mj_step(self.model, self.data)
         return self.get_obs()
 
     def get_obs(self):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
+
         return (
             helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
             helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),
@@ -162,6 +151,21 @@ class PhysicsEnv:
         DIR = os.path.dirname(os.path.abspath(__file__))
         model = mujoco.MjModel.from_xml_path(os.path.join(DIR, "models/world.xml"))
         data = mujoco.MjData(model)
+
+        # apply gravity compensation to all hand bodies
+        for id in range(model.nbody):
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, id)
+            if name is not None and (name.startswith("rh_") or name.startswith("lh_")):
+                model.body_gravcomp[id] = 1
+
+        # harden piano key contacts
+        physics_timestep = model.opt.timestep
+
+        for geom_id in range(model.ngeom):
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
+            if name is not None and ("white_key_geom" in name or "black_key_geom" in name):
+                model.geom_solref[geom_id, 0] = physics_timestep * 2 # must be >=2 for collision resolution to be stable
+                model.geom_solref[geom_id, 1] = 1.0
 
         # ids of the first and last key
         first_key_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "white_key_0")
@@ -222,6 +226,11 @@ class PhysicsEnv:
         # set control range of actuators to match joint range
         model.actuator_ctrlrange[rh_ty_act_id] = model.jnt_range[rh_ty_id]
         model.actuator_ctrlrange[lh_ty_act_id] = model.jnt_range[lh_ty_id]
+
+        # floor is only visual, it shouldn't block key depression
+        floor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        model.geom_contype[floor_id] = 0
+        model.geom_conaffinity[floor_id] = 0
 
         # initial forward pass to recompute positions from pre-updated positions
         mujoco.mj_forward(model, data)
