@@ -33,7 +33,7 @@ def run_episode(env: Environment, episode_type: EpisodeType, model_path: str):
             return
 
 def run_test(env: Environment, model_path:str):
-    time.sleep(1)
+    time.sleep(0.5)
     run_episode(env, episode_type=EpisodeType.TEST, model_path=model_path)
     time.sleep(2)
 
