@@ -126,7 +126,6 @@ class PhysicsEnv:
     def get_obs(self):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
-
         return (
             helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
             helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),

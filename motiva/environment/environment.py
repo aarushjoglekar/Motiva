@@ -37,13 +37,6 @@ class Environment:
         if self.should_render:
             self.physicsenv.render()
 
-        arr = self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids]
-        better = arr[arr > 1e-2]
-        # print(str(better) + "\n" if len(better) != 0 else "", end="")
-
-        # if self.piano_audio is not None:
-            # self.piano_audio.update(env_obs[0], 0, episode_time)
-
         return self.get_obs(env_obs, song_obs), self.get_reward(env_obs[0], song_obs[:Song.NUM_PIANO_NOTES], song_obs[Song.NUM_PIANO_NOTES:Song.NUM_FEATURES], fingers_to_keys), done
     
     def get_obs(self, env_obs: tuple, song_obs: np.ndarray):
