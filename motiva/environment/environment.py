@@ -71,7 +71,7 @@ class Environment:
         active_keys_positions = self.physicsenv.data.site_xpos[key_site_ids]
 
         dist = np.linalg.norm(fingertip_positions - active_keys_positions, axis=-1)
-        finger_dist_reward = 0 if len(active_fingers) == 0 else helpers.proximity_reward(
+        finger_dist_reward = 0 if len(active_keys_positions) == 0 else helpers.proximity_reward(
             dist,
             lower=0,
             upper=0.01,

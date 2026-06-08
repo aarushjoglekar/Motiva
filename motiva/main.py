@@ -18,7 +18,7 @@ VALIDATION_INTERVAL = 1
 SAVE_TO_MIDI = False
 
 # SONG SETTINGS
-SONG = Song.from_txt(Song.CHOPIN_WALTZ_OP69_NO1)
+SONG = Song.from_txt(Song.SOMEWHERE_OVER_THE_RAINBOW)
 
 def run_episode(env: Environment, episode_type: EpisodeType, model_path: str):
     observation = env.reset(
