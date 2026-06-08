@@ -1,3 +1,5 @@
+<!-- THIS MODEL WAS GENERATED FROM THE ROBOPIANIST ENVIRONMENT -->
+
 <mujoco model="piano">
   <default>
     <default class="piano">

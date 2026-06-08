@@ -17,7 +17,7 @@ class Environment:
 
     def reset(self, play_audio:bool, record_midi:bool, midi_path: str):
         if self.piano_audio is not None:
-            self.piano_audio.save()
+            self.piano_audio.save_and_close()
         self.piano_audio = PianoAudio(play_audio, record_midi, midi_path)
 
         self.physicsenv.reset()
@@ -95,7 +95,10 @@ class Environment:
     def __enter__(self):
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.physicsenv.viewer is not None:
             self.physicsenv.viewer.close()
             self.physicsenv.viewer = None
+
+        if self.piano_audio is not None and exc_type is None:
+            self.piano_audio.save_and_close()

@@ -118,7 +118,7 @@ class PhysicsEnv:
         scaled_action = self.action_lows + (action + 1) * 0.5 * (self.action_highs - self.action_lows)
 
         # pd position control
-        # self.data.ctrl[:] = scaled_action
+        self.data.ctrl[:] = scaled_action
 
         mujoco.mj_step(self.model, self.data)
         return self.get_obs()

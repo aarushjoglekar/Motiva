@@ -1,3 +1,5 @@
+<!-- THIS MODEL HAS BEEN MODIFIED -->
+
 <mujoco model="right_shadow_hand">
   <option impratio="10"/>
 
