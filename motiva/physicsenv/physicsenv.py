@@ -47,11 +47,6 @@ class PhysicsEnv:
             np.ones(len(forearm_pos_min))
         )
 
-        # gains for the tz joints in both arms
-        self.z_kP = 3
-        self.z_kD = 0.7
-        self.z_kS = 0.313
-
         # range of actions
         self.action_lows  = self.model.actuator_ctrlrange[:, 0]
         self.action_highs = self.model.actuator_ctrlrange[:, 1]
@@ -120,6 +115,7 @@ class PhysicsEnv:
     def get_obs(self):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
+
         return (
             helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
             helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),
@@ -215,10 +211,13 @@ class PhysicsEnv:
         lh_ty_act_id = mujoco.mj_name2id(
             model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_ty"
         )
-
+        
         # set control range of actuators to match joint range
-        model.actuator_ctrlrange[rh_ty_act_id] = model.jnt_range[rh_ty_id]
-        model.actuator_ctrlrange[lh_ty_act_id] = model.jnt_range[lh_ty_id]
+        for prefix in ["rh", "lh"]:
+            for suffix in ["tx", "ty", "tz"]:
+                joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, f"{prefix}_forearm_{suffix}")
+                act_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, f"{prefix}_A_forearm_{suffix}")
+                model.actuator_ctrlrange[act_id] = model.jnt_range[joint_id]
 
         # floor is only visual, it shouldn't block key depression
         floor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")

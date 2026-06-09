@@ -1,4 +1,5 @@
 JOINTS = [
+    "forearm_tx",
     "forearm_ty",
     "forearm_tz",
     "forearm_roll",

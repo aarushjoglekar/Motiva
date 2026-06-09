@@ -28,7 +28,7 @@ def run_episode(env: Environment, episode_type: EpisodeType, model_path: str):
     )
 
     while episode_type != EpisodeType.TEST or env.viewer_running():
-        observation, reward, done = env.step(action=np.zeros(46))
+        observation, reward, done = env.step(action=np.zeros(48))
         if done:
             return
 
