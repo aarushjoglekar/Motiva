@@ -1,20 +1,20 @@
-<!-- THIS MODEL WAS GENERATED FROM THE ROBOPIANIST ENVIRONMENT -->
+<!-- THIS MODEL WAS GENERATED FROM THE ROBOPIANIST ENVIRONMENT AND THEN MODIFIED -->
 
 <mujoco model="piano">
   <default>
     <default class="piano">
       <joint type="hinge" axis="0 1 0"/>
       <geom type="box" contype="0" conaffinity="1"/>
-      <site type="box" group="4" rgba="1 0 0 1"/>
+      <site group="4"/>
       <default class="white_key">
         <joint pos="-0.074999999999999997 0 0" stiffness="2" range="0 0.066568163775823808" springref="-0.017453292519943295" armature="0.001" damping="0.050000000000000003"/>
         <geom size="0.074999999999999997 0.01125 0.01125" material="piano_white" mass="0.040000000000000001"/>
-        <site size="0.074999999999999997 0.01125 0.01125"/>
+        <site size="0.01" pos="0.02625 0 0.005625"/>
       </default>
       <default class="black_key">
         <joint pos="-0.044999999999999998 0 0" stiffness="2" range="0 0.088655881867437475" springref="-0.017453292519943295" armature="0.001" damping="0.050000000000000003"/>
         <geom size="0.044999999999999998 0.0050000000000000001 0.0089999999999999993" material="piano_black" mass="0.02"/>
-        <site size="0.044999999999999998 0.0050000000000000001 0.0089999999999999993"/>
+        <site size="0.01" pos="0.01575 0 0.0045"/>
       </default>
     </default>
   </default>

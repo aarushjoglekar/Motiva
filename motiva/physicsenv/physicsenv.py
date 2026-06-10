@@ -22,6 +22,10 @@ class PhysicsEnv:
         self.rz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tz")
         self.lz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tz")
 
+        # tx joint ids
+        rx_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tx")
+        lx_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tx")
+
         # ty joint ids
         ry_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_ty")
         ly_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_ty")
@@ -32,12 +36,12 @@ class PhysicsEnv:
 
         # x min/max is constant because it does not move
         forearm_pos_min = np.array([
-            rh_base[0], rh_base[1] + self.model.jnt_range[ry_joint_id, 0], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 0],
-            lh_base[0], lh_base[1] + self.model.jnt_range[ly_joint_id, 0], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 0],
+            rh_base[0] + self.model.jnt_range[rx_joint_id, 0], rh_base[1] + self.model.jnt_range[ry_joint_id, 0], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 0],
+            lh_base[0] + self.model.jnt_range[lx_joint_id, 0], lh_base[1] + self.model.jnt_range[ly_joint_id, 0], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 0],
         ])
         forearm_pos_max = np.array([
-            rh_base[0], rh_base[1] + self.model.jnt_range[ry_joint_id, 1], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 1],
-            lh_base[0], lh_base[1] + self.model.jnt_range[ly_joint_id, 1], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 1],
+            rh_base[0] + self.model.jnt_range[rx_joint_id, 1], rh_base[1] + self.model.jnt_range[ry_joint_id, 1], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 1],
+            lh_base[0] + self.model.jnt_range[lx_joint_id, 1], lh_base[1] + self.model.jnt_range[ly_joint_id, 1], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 1],
         ])
 
         self.forearm_pos_scale, self.forearm_pos_offset = helpers.make_rescaler(

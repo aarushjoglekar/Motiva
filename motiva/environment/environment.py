@@ -47,20 +47,20 @@ class Environment:
     
     def get_reward(self, piano_actual_state:np.ndarray, piano_goal_state:np.ndarray, active_fingers:np.ndarray, active_keys:np.ndarray):
         # key press reward
-        piano_state_error = piano_goal_state - piano_actual_state
-        accurate_key_presses = 0.5 * helpers.proximity_reward(
-            np.linalg.norm(piano_state_error).item(),
+        key_should_be_pressed = np.where(piano_goal_state == 1)[0]
+        piano_state_error = (0.5 * (piano_actual_state[key_should_be_pressed] + 1)) - 1
+        accurate_key_presses = 0 if len(piano_state_error) == 0 else 0.5 * helpers.proximity_reward(
+            np.abs(piano_state_error),
             lower=0,
             upper=0.05,
             margin=0.5,
             value_at_margin=0.1
-        )
+        ).mean()
 
-        max_joint_range = self.physicsenv.model.jnt_range[self.physicsenv.piano_joint_ids, 1]
-        key_is_sounding = piano_actual_state >= (max_joint_range - np.deg2rad(0.5))
-        false_positive_penalty = 0.5 * np.any(key_is_sounding & (piano_goal_state == 0))
+        key_is_sounding = piano_actual_state >= PianoAudio.PRESS_THRESHOLD
+        no_false_positive_reward = 0.5 * (1 - np.any(key_is_sounding & (piano_goal_state == 0)))
 
-        key_press_reward = accurate_key_presses - false_positive_penalty
+        key_press_reward = accurate_key_presses + no_false_positive_reward
 
         # finger close to key reward
         active_finger_site_ids = self.physicsenv.finger_site_ids[np.where(active_fingers == 1)]
@@ -75,7 +75,7 @@ class Environment:
             dist,
             lower=0,
             upper=0.01,
-            margin=0.5,
+            margin=0.1,
             value_at_margin=0.1
         ).mean()
 

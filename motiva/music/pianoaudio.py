@@ -5,7 +5,7 @@ import numpy as np
 import mido
 
 class PianoAudio:
-    PRESS_THRESHOLD = 0.5
+    PRESS_THRESHOLD = 0.75
     MAX_QVEL = 3
 
     def __init__(self, play_audio: bool, record_midi: bool, midi_path:str):
