@@ -1,8 +1,9 @@
 import mujoco
 import os
 import numpy as np
-import physicsenv.constants as constants
-import helpers.helpers as helpers
+from physicsenv import constants
+from helpers import helpers
+from music.song import Song
 
 class PhysicsEnv:
     def __init__(self):
@@ -104,6 +105,9 @@ class PhysicsEnv:
             for finger_site in constants.FINGER_SITE
         ], dtype=int)
 
+        # physics steps per env step
+        self.physics_steps_per_env_step = round((1 / Song.RESOLUTION) / self.model.opt.timestep)
+
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range
     def step(self, action: np.ndarray):
@@ -113,7 +117,9 @@ class PhysicsEnv:
         # pd position control
         self.data.ctrl[:] = scaled_action
 
-        mujoco.mj_step(self.model, self.data)
+        for _ in range(self.physics_steps_per_env_step):
+            mujoco.mj_step(self.model, self.data)
+
         return self.get_obs()
 
     def get_obs(self):

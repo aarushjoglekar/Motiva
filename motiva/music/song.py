@@ -21,9 +21,9 @@ class Song:
         self.length = len(self.data)
 
     def sample_at(self, time: float):
-        index = Song.time_to_index(time)
+        index = min(Song.time_to_index(time), self.length - 1)
         end = index + Song.LOOKAHEAD
-        done = (self.length - index - 1) == 0
+        done = index >= self.length - 1
 
         if end <= self.length:
             samples = self.data[index:end]

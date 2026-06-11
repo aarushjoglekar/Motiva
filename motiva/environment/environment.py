@@ -4,13 +4,15 @@ from music.pianoaudio import PianoAudio
 import time
 import numpy as np
 import helpers.helpers as helpers
+from typing import Callable
 
 class Environment:
-    def __init__(self, song: Song, should_render: bool):
+    def __init__(self, song: Song, should_render: bool, get_time: Callable[['Environment'], float]):
         self.physicsenv = PhysicsEnv()
         self.song = song
         self.should_render = should_render
         self.piano_audio = None
+        self.get_time = get_time
 
         if should_render:
             self.physicsenv.render()
@@ -21,6 +23,7 @@ class Environment:
         self.piano_audio = PianoAudio(play_audio, record_midi, midi_path)
 
         self.physicsenv.reset()
+        self.step_count = 0
         self.start_time = time.perf_counter_ns()
 
         env_obs = self.physicsenv.get_obs()
@@ -29,7 +32,8 @@ class Environment:
         return self.get_obs(env_obs, song_obs)
 
     def step(self, action: np.ndarray):
-        episode_time = (time.perf_counter_ns() - self.start_time) / 1e9
+        self.step_count += 1
+        episode_time = self.get_time(self)
 
         env_obs = self.physicsenv.step(action)
         song_obs, fingers_to_keys, done = self.song.sample_at(episode_time)
