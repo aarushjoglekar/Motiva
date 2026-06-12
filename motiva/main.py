@@ -59,11 +59,7 @@ def run_training(env: Environment, model_path:str):
     for episode in range(NUM_EPISODES):
         run_episode(env, episode_type=(EpisodeType.VALIDATION if ((episode + 1) % VALIDATION_INTERVAL == 0) else EpisodeType.TRAINING), model_path=model_path)
 
-with Environment(
-    SONG, 
-    should_render=(not TRAINING), 
-    get_time=((lambda env: (env.step_count / Song.RESOLUTION)) if TRAINING else (lambda env: (time.perf_counter_ns() - env.start_time) / 1e9))
-) as env:
+with Environment(SONG, should_render=(not TRAINING)) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
 
