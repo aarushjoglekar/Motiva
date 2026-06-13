@@ -8,49 +8,14 @@ from music.song import Song
 class PhysicsEnv:
     def __init__(self):
         # instantiation
-        self.model, self.data = self.initialize_models()
+        self.model, self.data, piano_y_min, piano_y_max = self.initialize_models()
         self.viewer = None
-        
-        # forearm body ids
-        self.forearm_ids = [
-            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, f"{hand}_forearm")
-            for hand in constants.HANDS
-        ]
 
         # tz actuator and joint ids
         self.rz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rh_A_forearm_tz")
         self.lz_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_tz")
         self.rz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tz")
         self.lz_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tz")
-
-        # tx joint ids
-        rx_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_tx")
-        lx_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_tx")
-
-        # ty joint ids
-        ry_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_ty")
-        ly_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_ty")
-
-        # forearm body rescaling
-        rh_base = self.model.body_pos[self.forearm_ids[0]]
-        lh_base = self.model.body_pos[self.forearm_ids[1]]
-
-        # x min/max is constant because it does not move
-        forearm_pos_min = np.array([
-            rh_base[0] + self.model.jnt_range[rx_joint_id, 0], rh_base[1] + self.model.jnt_range[ry_joint_id, 0], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 0],
-            lh_base[0] + self.model.jnt_range[lx_joint_id, 0], lh_base[1] + self.model.jnt_range[ly_joint_id, 0], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 0],
-        ])
-        forearm_pos_max = np.array([
-            rh_base[0] + self.model.jnt_range[rx_joint_id, 1], rh_base[1] + self.model.jnt_range[ry_joint_id, 1], rh_base[2] + self.model.jnt_range[self.rz_joint_id, 1],
-            lh_base[0] + self.model.jnt_range[lx_joint_id, 1], lh_base[1] + self.model.jnt_range[ly_joint_id, 1], lh_base[2] + self.model.jnt_range[self.lz_joint_id, 1],
-        ])
-
-        self.forearm_pos_scale, self.forearm_pos_offset = helpers.make_rescaler(
-            forearm_pos_min,
-            forearm_pos_max,
-            np.zeros(len(forearm_pos_min)) - 1,
-            np.ones(len(forearm_pos_min))
-        )
 
         # range of actions
         self.action_lows  = self.model.actuator_ctrlrange[:, 0]
@@ -105,6 +70,16 @@ class PhysicsEnv:
             for finger_site in constants.FINGER_SITE
         ], dtype=int)
 
+        # finger site rescaling (values determined experimentally)
+        finger_min = [-0.05, piano_y_min, 0]
+        finger_max = [0.17, piano_y_max, 0.3]
+        self.finger_site_scale, self.finger_site_offset = helpers.make_rescaler(
+            np.array(finger_min * len(self.finger_site_ids)),
+            np.array(finger_max * len(self.finger_site_ids)),
+            np.zeros(len(finger_min) * len(self.finger_site_ids)) - 1,
+            np.ones(len(finger_max) * len(self.finger_site_ids))
+        )
+
         # physics steps per env step
         self.physics_steps_per_env_step = round((1 / Song.RESOLUTION) / self.model.opt.timestep)
 
@@ -129,7 +104,7 @@ class PhysicsEnv:
         return (
             helpers.rescale(self.data.qpos[self.piano_joint_ids], self.piano_scale, self.piano_offset), 
             helpers.rescale(self.data.qpos[self.hand_joint_ids], self.hand_joint_scale, self.hand_joint_offset),
-            helpers.rescale(self.data.xpos[self.forearm_ids].ravel(), self.forearm_pos_scale, self.forearm_pos_offset)
+            helpers.rescale(self.data.site_xpos[self.finger_site_ids].ravel(), self.finger_site_scale, self.finger_site_offset)
         )
 
     def render(self):
@@ -213,14 +188,6 @@ class PhysicsEnv:
             y_min - model.body_pos[lh_forearm_id][1],
             y_max - model.body_pos[lh_forearm_id][1],
         ]
-
-        # actuator ids
-        rh_ty_act_id = mujoco.mj_name2id(
-            model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rh_A_forearm_ty"
-        )
-        lh_ty_act_id = mujoco.mj_name2id(
-            model, mujoco.mjtObj.mjOBJ_ACTUATOR, "lh_A_forearm_ty"
-        )
         
         # set control range of actuators to match joint range
         for prefix in ["rh", "lh"]:
@@ -237,4 +204,4 @@ class PhysicsEnv:
         # initial forward pass to recompute positions from pre-updated positions
         mujoco.mj_forward(model, data)
 
-        return model, data
+        return model, data, y_min, y_max

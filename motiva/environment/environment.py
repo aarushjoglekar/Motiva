@@ -34,6 +34,7 @@ class Environment:
         episode_time = self.step_count / Song.RESOLUTION
 
         env_obs = self.physicsenv.step(action)
+
         song_obs, fingers_to_keys, done = self.song.sample_at(episode_time)
 
         if self.should_render:
