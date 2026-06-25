@@ -2,6 +2,10 @@ import torch
 import math
 from replay_buffer import ReplayBuffer
 
+def init_weights_xavier(module: torch.nn.Module):
+    if isinstance(module, torch.nn.Linear):
+        torch.nn.init.xavier_uniform_(module.weight)
+        torch.nn.init.zeros_(module.bias)
 
 class Actor(torch.nn.Module):
     def __init__(
@@ -13,15 +17,17 @@ class Actor(torch.nn.Module):
     ):
         super().__init__()
 
-        layers = [torch.nn.Linear(num_observations, hidden_layer_size), torch.nn.ReLU()]
+        layers = [torch.nn.Linear(num_observations, hidden_layer_size), torch.nn.GELU()]
 
         for _ in range(num_hidden_layers):
             layers.append(torch.nn.Linear(hidden_layer_size, hidden_layer_size))
-            layers.append(torch.nn.ReLU())
+            layers.append(torch.nn.GELU())
 
         layers.append(torch.nn.Linear(hidden_layer_size, num_actions * 2))
 
         self.layers = torch.nn.Sequential(*layers)
+
+        self.apply(init_weights_xavier)
 
     def forward(self, state: torch.Tensor):
         return self.layers(state)
@@ -38,38 +44,34 @@ class Critic(torch.nn.Module):
     ):
         super().__init__()
 
-        self.input_linear = torch.nn.Linear(
-            num_observations + num_actions, hidden_layer_size
-        )
-        self.input_post = torch.nn.Sequential(
+        self.input_layer = torch.nn.Sequential(
+            torch.nn.Linear(num_observations + num_actions, hidden_layer_size),
             torch.nn.LayerNorm(hidden_layer_size),
-            torch.nn.ReLU(),
         )
 
-        self.hidden_linears = torch.nn.ModuleList()
-        self.hidden_posts = torch.nn.ModuleList()
+        self.hidden_layers = torch.nn.ModuleList()
         for _ in range(num_hidden_layers):
-            self.hidden_linears.append(
-                torch.nn.Linear(hidden_layer_size, hidden_layer_size)
-            )
-            self.hidden_posts.append(
+            self.hidden_layers.append(
                 torch.nn.Sequential(
+                    torch.nn.Linear(hidden_layer_size, hidden_layer_size),
                     torch.nn.LayerNorm(hidden_layer_size),
-                    torch.nn.ReLU(),
                 )
             )
 
         self.output_layer = torch.nn.Linear(hidden_layer_size, 1)
 
         self.dropout = torch.nn.Dropout(p=dropout_probability)
+        self.gelu = torch.nn.GELU()
+
+        self.apply(init_weights_xavier)
 
     def forward(self, state: torch.Tensor, action: torch.Tensor, dropout: bool):
         X = torch.cat([state, action], dim=-1)
 
-        X = self.input_post(self.apply_dropout(X=self.input_linear(X), dropout=dropout))
+        X = self.gelu(self.apply_dropout(X=self.input_layer(X), dropout=dropout))
 
-        for linear, post in zip(self.hidden_linears, self.hidden_posts):
-            X = post(self.apply_dropout(X=linear(X), dropout=dropout))
+        for hidden_layer in self.hidden_layers:
+            X = self.gelu(self.apply_dropout(X=hidden_layer(X), dropout=dropout))
 
         return self.output_layer(X).squeeze(-1)
 
@@ -156,17 +158,14 @@ class SAC_DROQ(torch.nn.Module):
     def select_action(self, state: torch.Tensor, deterministic: bool):
         y = self.actor(state)
 
-        means = y[..., 0::2]
-        log_stds = y[..., 1::2]
+        means, log_stds = y.chunk(2, dim=-1)
 
         if deterministic:
             return torch.tanh(means), torch.tensor([])
 
-        scaled_log_stds = self.min_action_log_std + (
-            self.max_action_log_std - self.min_action_log_std
-        ) * 0.5 * (1 + torch.tanh(log_stds))
+        clamped_log_stds = torch.clamp(input=log_stds, min=self.min_action_log_std, max=self.max_action_log_std)
 
-        dist = torch.distributions.Normal(means, scaled_log_stds.exp())
+        dist = torch.distributions.Normal(means, clamped_log_stds.exp())
 
         action = dist.rsample()
         log_prob = dist.log_prob(action)
