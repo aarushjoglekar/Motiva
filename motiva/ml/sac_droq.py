@@ -1,6 +1,6 @@
 import torch
 import math
-from replay_buffer import ReplayBuffer
+from ml.replay_buffer import ReplayBuffer
 import os
 
 
@@ -98,7 +98,7 @@ class SAC_DROQ(torch.nn.Module):
         num_critics: int,
         actor_lr: float,
         critic_lr: float,
-        alpha_lr: float,
+        log_alpha_lr: float,
         critic_dropout_probability: float,
         min_action_log_std: float,
         max_action_log_std: float,
@@ -141,7 +141,7 @@ class SAC_DROQ(torch.nn.Module):
 
         self.target_entropy = target_entropy
         self.log_alpha = torch.nn.Parameter(torch.zeros(1))
-        self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=alpha_lr)
+        self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=log_alpha_lr)
         self.alpha = self.log_alpha.exp().item()
 
         self.min_action_log_std = min_action_log_std
