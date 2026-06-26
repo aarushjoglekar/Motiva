@@ -17,10 +17,10 @@ class Environment:
         if should_render:
             self.physicsenv.render()
 
-    def reset(self, play_audio: bool, record_midi: bool, midi_path: str):
+    def reset(self, play_audio: bool, record_midi: bool, midi_file: str):
         if self.piano_audio is not None:
             self.piano_audio.save_and_close()
-        self.piano_audio = PianoAudio(play_audio, record_midi, midi_path)
+        self.piano_audio = PianoAudio(play_audio=play_audio, record_midi=record_midi, midi_file=midi_file)
 
         self.physicsenv.reset()
         self.step_count = 0

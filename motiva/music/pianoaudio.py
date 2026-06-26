@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 import fluidsynth
 import numpy as np
@@ -8,10 +7,10 @@ class PianoAudio:
     PRESS_THRESHOLD = 0.75
     MAX_QVEL = 3
 
-    def __init__(self, play_audio: bool, record_midi: bool, midi_path:str):
+    def __init__(self, play_audio: bool, record_midi: bool, midi_file:str):
         self.play_audio = play_audio
         self.record_midi = record_midi
-        self.midi_path = midi_path
+        self.midi_file = midi_file
         self.key_pressed = np.zeros(88, dtype=bool)
 
         if self.play_audio:
@@ -73,5 +72,5 @@ class PianoAudio:
             self.fluidsynth.delete()
 
         if self.record_midi:
-            path = f"{os.path.join(self.midi_path, datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))}.mid"
-            self.mid.save(filename=path)
+            os.makedirs(os.path.dirname(self.midi_file), exist_ok=True)
+            self.mid.save(filename=self.midi_file)

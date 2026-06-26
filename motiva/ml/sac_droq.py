@@ -321,6 +321,8 @@ class SAC_DROQ(torch.nn.Module):
                 current_log_probs.mean().item(),
                 self.alpha,
             )
+        
+        return None
 
     def save(self):
         torch.save(
@@ -335,10 +337,14 @@ class SAC_DROQ(torch.nn.Module):
             os.path.join(self.model_path, "model.pth"),
         )
 
+        print("Model Saved!")
+
         torch.save(
             {"replay_buffer": self.replay_buffer.dump()},
             os.path.join(self.model_path, "replay_buffer.pth"),
         )
+
+        print("Replay Buffer Saved!")
 
     @staticmethod
     def initialize_critic(
