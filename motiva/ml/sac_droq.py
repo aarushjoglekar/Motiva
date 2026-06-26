@@ -161,7 +161,9 @@ class SAC_DROQ(torch.nn.Module):
 
         self.model_path = model_path
         try:
-            loaded = torch.load(os.path.join(self.model_path, "model"), weights_only=True)
+            loaded = torch.load(
+                os.path.join(self.model_path, "model"), weights_only=True
+            )
             self.load_state_dict(loaded["weights"])
 
             self.actor_optimizer.load_state_dict(loaded["actor_optimizer"])
@@ -178,7 +180,9 @@ class SAC_DROQ(torch.nn.Module):
             print("Model not loaded: instantiating new model")
 
         try:
-            loaded = torch.load(os.path.join(self.model_path, "replay_buffer"), weights_only=True)
+            loaded = torch.load(
+                os.path.join(self.model_path, "replay_buffer"), weights_only=True
+            )
             self.replay_buffer.load(loaded["replay_buffer"])
         except FileNotFoundError:
             print("Replay buffer not loaded")
@@ -213,12 +217,9 @@ class SAC_DROQ(torch.nn.Module):
         state: torch.Tensor,
         action: torch.Tensor,
         reward: float,
-        next_state: torch.Tensor,
         done: bool,
     ):
-        self.replay_buffer.add_sample(
-            state.detach(), action.detach(), reward, next_state.detach(), done
-        )
+        self.replay_buffer.add_sample(state.detach(), action.detach(), reward, done)
 
         if (
             self.replay_buffer.has_enough_samples()

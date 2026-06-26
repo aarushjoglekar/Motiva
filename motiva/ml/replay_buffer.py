@@ -18,14 +18,12 @@ class ReplayBuffer:
         self.states = torch.zeros(self.max_size, num_observations)
         self.actions = torch.zeros(self.max_size, num_actions)
         self.rewards = torch.zeros(self.max_size, 1)
-        self.next_states = torch.zeros(self.max_size, num_observations)
         self.dones = torch.zeros(self.max_size, 1)
 
     def load(self, data):
         self.states = data["states"]
         self.actions = data["actions"]
         self.rewards = data["rewards"]
-        self.next_states = data["next_states"]
         self.dones = data["dones"]
         self.length = data["length"]
         self.pointer = data["pointer"]
@@ -35,7 +33,6 @@ class ReplayBuffer:
             "states": self.states,
             "actions": self.actions,
             "rewards": self.rewards,
-            "next_states": self.next_states,
             "dones": self.dones,
             "length": self.length,
             "pointer": self.pointer,
@@ -46,13 +43,11 @@ class ReplayBuffer:
         state: torch.Tensor,
         action: torch.Tensor,
         reward: float,
-        next_state: torch.Tensor,
         done: bool,
     ):
         self.states[self.pointer] = state
         self.actions[self.pointer] = action
         self.rewards[self.pointer] = reward
-        self.next_states[self.pointer] = next_state
         self.dones[self.pointer] = done
 
         self.pointer += 1
@@ -63,13 +58,20 @@ class ReplayBuffer:
             self.length += 1
 
     def sample_random(self):
-        indices = torch.randint(0, self.length, (self.sample_size,))
+        indices = torch.randint(
+            0, self.length - 1, (self.sample_size,)
+        )  # sample one less than the lenght
+
+        forbidden = (self.pointer - 1) % self.length
+        indices[
+            indices >= forbidden
+        ] += 1  # shift everything above the pointer by 1 to keep results uniform
 
         return (
             self.states[indices],
             self.actions[indices],
             self.rewards[indices].squeeze(-1),
-            self.next_states[indices],
+            self.states[(indices + 1) % self.length],
             self.dones[indices].squeeze(-1),
         )
 
