@@ -52,19 +52,25 @@ def run_episode(
             state=observation, deterministic=(episode_type != EpisodeType.TRAINING)
         )
 
-        next_observation, reward, done = env.step(action=action.detach().numpy())
+        next_observation, reward, truncated = env.step(action=action.detach().numpy())
         next_observation = torch.from_numpy(next_observation).float()
         steps += 1
 
         if episode_type == EpisodeType.TRAINING:
-            model.update(state=observation, action=action, reward=reward, done=done)
+            model.update(
+                state=observation,
+                next_state=next_observation,
+                action=action,
+                reward=reward,
+                truncated=truncated,
+            )
 
         observation = next_observation
 
         if on_step_end is not None:
             on_step_end()
 
-        if done:
+        if truncated:
             return steps, False
 
         if episode_type == EpisodeType.TEST and not env.viewer_running():

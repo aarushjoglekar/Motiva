@@ -23,7 +23,7 @@ class Song:
     def sample_at(self, time: float):
         index = min(Song.time_to_index(time), self.length - 1)
         end = index + Song.LOOKAHEAD
-        done = index >= self.length - 1
+        truncated = index >= self.length - 1
 
         if end <= self.length:
             samples = self.data[index:end]
@@ -32,7 +32,7 @@ class Song:
 
         fingers_to_keys_sample = self.fingers_to_keys_data[index]
 
-        return samples.ravel(), fingers_to_keys_sample, done
+        return samples.ravel(), fingers_to_keys_sample, truncated
     
     def total_time(self):
         return self.length / Song.RESOLUTION

@@ -215,11 +215,18 @@ class SAC_DROQ(torch.nn.Module):
     def update(
         self,
         state: torch.Tensor,
+        next_state: torch.Tensor,
         action: torch.Tensor,
         reward: float,
-        done: bool,
+        truncated: bool,
     ):
-        self.replay_buffer.add_sample(state.detach(), action.detach(), reward, done)
+        self.replay_buffer.add_sample(
+            state=state.detach(),
+            next_state=next_state.detach(),
+            action=action.detach(),
+            reward=reward,
+            truncated=truncated,
+        )
 
         if (
             self.replay_buffer.has_enough_samples()
@@ -229,11 +236,9 @@ class SAC_DROQ(torch.nn.Module):
             avg_critic_loss = 0
 
             for _ in range(self.updates_per_step):
-                states, actions, rewards, next_states, dones = (
+                states, actions, rewards, next_states = (
                     self.replay_buffer.sample_random()
                 )
-
-                print("HELLO")
 
                 with torch.no_grad():
                     next_actions, next_log_probs = self.select_action(
@@ -251,7 +256,7 @@ class SAC_DROQ(torch.nn.Module):
                         ),
                         dim=0,
                     ).values
-                    critic_target = rewards + self.discount_factor * (1 - dones) * (
+                    critic_target = rewards + self.discount_factor * (
                         next_q - self.alpha * next_log_probs
                     )
 

@@ -37,7 +37,7 @@ class Environment:
 
         env_obs = self.physicsenv.step(action)
 
-        song_obs, fingers_to_keys, done = self.song.sample_at(episode_time)
+        song_obs, fingers_to_keys, truncated = self.song.sample_at(episode_time)
 
         if self.should_render:
             self.physicsenv.render()
@@ -57,7 +57,7 @@ class Environment:
                 song_obs[Song.NUM_PIANO_NOTES : Song.NUM_FEATURES],
                 fingers_to_keys,
             ),
-            done,
+            truncated,
         )
 
     def get_obs(self, env_obs: tuple, song_obs: np.ndarray):
