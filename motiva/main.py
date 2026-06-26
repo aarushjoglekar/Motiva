@@ -3,17 +3,17 @@ from environment.environment import Environment
 from environment.episodetype import EpisodeType
 from ml.sac_droq import SAC_DROQ
 from ml.config import SAC_DROQ_DEFAULT_CONFIG
-import numpy as np
 import time
 import os
+import torch
 
 ### SETTINGS
 # GENERAL SETTINGS
 MODEL_NAME = "motiva"
 
 # TRAINING SETTINGS
-TRAINING = False
-NUM_EPISODES = 3
+TRAINING = True
+NUM_STEPS = 50
 VALIDATION_INTERVAL = 2
 
 # TESTING SETTINGS
@@ -38,23 +38,37 @@ def run_episode(
         ),
         midi_path=model_path,
     )
+    observation = torch.from_numpy(observation).float()
 
     if episode_type == EpisodeType.TRAINING:
         model.train()
     else:
         model.eval()
 
+    steps = 0
+
     while True:
-        observation, reward, done = env.step(action=np.zeros(env.num_actions()))
+        action, _ = model.select_action(
+            state=observation, deterministic=(episode_type != EpisodeType.TRAINING)
+        )
+
+        next_observation, reward, done = env.step(action=action.detach().numpy())
+        next_observation = torch.from_numpy(next_observation).float()
+        steps += 1
+
+        if episode_type == EpisodeType.TRAINING:
+            model.update(state=observation, action=action, reward=reward, done=done)
+
+        observation = next_observation
 
         if on_step_end is not None:
             on_step_end()
 
         if done:
-            return False
+            return steps, False
 
         if episode_type == EpisodeType.TEST and not env.viewer_running():
-            return True
+            return steps, True
 
 
 def run_test(model: SAC_DROQ, env: Environment, model_path: str):
@@ -71,7 +85,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str):
         if sleep_time > 0:
             time.sleep(sleep_time)
 
-    closed_viewer = run_episode(
+    _, closed_viewer = run_episode(
         model=model,
         env=env,
         episode_type=EpisodeType.TEST,
@@ -84,8 +98,12 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str):
 
 def run_training(model: SAC_DROQ, env: Environment, model_path: str):
     os.makedirs(model_path, exist_ok=True)
-    for episode in range(NUM_EPISODES):
-        run_episode(
+
+    num_steps = 0
+    episode = 0
+
+    while num_steps < NUM_STEPS:
+        steps, _ = run_episode(
             model=model,
             env=env,
             episode_type=(
@@ -95,6 +113,11 @@ def run_training(model: SAC_DROQ, env: Environment, model_path: str):
             ),
             model_path=model_path,
         )
+
+        episode += 1
+        num_steps += steps
+
+    model.save()
 
 
 with Environment(SONG, should_render=(not TRAINING)) as env:
@@ -120,7 +143,7 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
         updates_per_step=SAC_DROQ_DEFAULT_CONFIG.updates_per_step,
         sample_size=SAC_DROQ_DEFAULT_CONFIG.sample_size,
         replay_buffer_size=SAC_DROQ_DEFAULT_CONFIG.replay_buffer_size,
-        target_entropy=SAC_DROQ_DEFAULT_CONFIG.target_entropy,
+        target_entropy=(-env.num_actions()),
         discount_factor=SAC_DROQ_DEFAULT_CONFIG.discount_factor,
         tau=SAC_DROQ_DEFAULT_CONFIG.tau,
     )

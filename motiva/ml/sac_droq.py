@@ -162,7 +162,7 @@ class SAC_DROQ(torch.nn.Module):
         self.model_path = model_path
         try:
             loaded = torch.load(
-                os.path.join(self.model_path, "model"), weights_only=True
+                os.path.join(self.model_path, "model.pth"), weights_only=True
             )
             self.load_state_dict(loaded["weights"])
 
@@ -181,7 +181,7 @@ class SAC_DROQ(torch.nn.Module):
 
         try:
             loaded = torch.load(
-                os.path.join(self.model_path, "replay_buffer"), weights_only=True
+                os.path.join(self.model_path, "replay_buffer.pth"), weights_only=True
             )
             self.replay_buffer.load(loaded["replay_buffer"])
         except FileNotFoundError:
@@ -232,6 +232,8 @@ class SAC_DROQ(torch.nn.Module):
                 states, actions, rewards, next_states, dones = (
                     self.replay_buffer.sample_random()
                 )
+
+                print("HELLO")
 
                 with torch.no_grad():
                     next_actions, next_log_probs = self.select_action(
@@ -325,12 +327,12 @@ class SAC_DROQ(torch.nn.Module):
                 ],
                 "log_alpha_optimizer": self.log_alpha_optimizer.state_dict(),
             },
-            os.path.join(self.model_path, "model"),
+            os.path.join(self.model_path, "model.pth"),
         )
 
         torch.save(
             {"replay_buffer": self.replay_buffer.dump()},
-            os.path.join(self.model_path, "replay_buffer"),
+            os.path.join(self.model_path, "replay_buffer.pth"),
         )
 
     @staticmethod
