@@ -1,11 +1,14 @@
 import torch
 import math
 from replay_buffer import ReplayBuffer
+import os
+
 
 def init_weights_xavier(module: torch.nn.Module):
     if isinstance(module, torch.nn.Linear):
         torch.nn.init.xavier_uniform_(module.weight)
         torch.nn.init.zeros_(module.bias)
+
 
 class Actor(torch.nn.Module):
     def __init__(
@@ -85,6 +88,7 @@ class Critic(torch.nn.Module):
 class SAC_DROQ(torch.nn.Module):
     def __init__(
         self,
+        model_path: str,
         num_observations: int,
         num_actions: int,
         actor_hidden_layer_size: int,
@@ -155,6 +159,30 @@ class SAC_DROQ(torch.nn.Module):
             max_size=replay_buffer_size,
         )
 
+        self.model_path = model_path
+        try:
+            loaded = torch.load(os.path.join(self.model_path, "model"), weights_only=True)
+            self.load_state_dict(loaded["weights"])
+
+            self.actor_optimizer.load_state_dict(loaded["actor_optimizer"])
+
+            for i in range(num_critics):
+                self.critic_optimizers[i].load_state_dict(
+                    loaded["critic_optimizers"][i]
+                )
+
+            self.log_alpha_optimizer.load_state_dict(loaded["log_alpha_optimizer"])
+
+            self.alpha = self.log_alpha.exp().item()
+        except FileNotFoundError:
+            print("Model not loaded: instantiating new model")
+
+        try:
+            loaded = torch.load(os.path.join(self.model_path, "replay_buffer"), weights_only=True)
+            self.replay_buffer.load(loaded["replay_buffer"])
+        except FileNotFoundError:
+            print("Replay buffer not loaded")
+
     def select_action(self, state: torch.Tensor, deterministic: bool):
         y = self.actor(state)
 
@@ -163,7 +191,9 @@ class SAC_DROQ(torch.nn.Module):
         if deterministic:
             return torch.tanh(means), torch.tensor([])
 
-        clamped_log_stds = torch.clamp(input=log_stds, min=self.min_action_log_std, max=self.max_action_log_std)
+        clamped_log_stds = torch.clamp(
+            input=log_stds, min=self.min_action_log_std, max=self.max_action_log_std
+        )
 
         dist = torch.distributions.Normal(means, clamped_log_stds.exp())
 
@@ -283,6 +313,24 @@ class SAC_DROQ(torch.nn.Module):
                 current_log_probs.mean().item(),
                 self.alpha,
             )
+
+    def save(self):
+        torch.save(
+            {
+                "weights": self.state_dict(),
+                "actor_optimizer": self.actor_optimizer.state_dict(),
+                "critic_optimizers": [
+                    optimizer.state_dict() for optimizer in self.critic_optimizers
+                ],
+                "log_alpha_optimizer": self.log_alpha_optimizer.state_dict(),
+            },
+            os.path.join(self.model_path, "model"),
+        )
+
+        torch.save(
+            {"replay_buffer": self.replay_buffer.dump()},
+            os.path.join(self.model_path, "replay_buffer"),
+        )
 
     @staticmethod
     def initialize_critic(
