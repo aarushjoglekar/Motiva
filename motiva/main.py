@@ -10,7 +10,7 @@ import numpy as np
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "somewhere_over_the_rainbow_v1"
+MODEL_NAME = "twinkle_twinkle_little_star_v1"
 SEED = 42
 
 # TRAINING SETTINGS
@@ -22,7 +22,7 @@ VALIDATION_INTERVAL = 3000
 SAVE_TO_MIDI = False
 
 # SONG SETTINGS
-SONG = Song.from_txt(Song.SOMEWHERE_OVER_THE_RAINBOW)
+SONG = Song.from_txt(Song.TWINKLE_TWINKLE_LITTLE_STAR)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)

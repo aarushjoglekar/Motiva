@@ -11,6 +11,7 @@ class Song:
     NUM_ACTIVE_FINGERS = 10
     NUM_FEATURES = NUM_PIANO_NOTES + NUM_ACTIVE_FINGERS
 
+    TWINKLE_TWINKLE_LITTLE_STAR = "twinkle_twinkle_little_star"
     SOMEWHERE_OVER_THE_RAINBOW = "somewhere_over_the_rainbow"
     CHOPIN_WALTZ_OP69_NO1 = "chopin_waltz_op69_no1"
 

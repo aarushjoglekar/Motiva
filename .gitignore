@@ -3,5 +3,6 @@ __pycache__/
 PianoFingeringDataset
 motiva/music/songs/*
 !motiva/music/songs/somewhere_over_the_rainbow
+!motiva/music/songs/twinkle_twinkle_little_star
 installation_reqs.txt
 .DS_Store
