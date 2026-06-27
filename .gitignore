@@ -7,3 +7,5 @@ motiva/music/songs/*
 installation_reqs.txt
 .DS_Store.
 .vscode
+valid-*.mid
+replay_buffer.pth
