@@ -216,7 +216,7 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
         updates_per_step=SAC_DROQ_DEFAULT_CONFIG.updates_per_step,
         sample_size=SAC_DROQ_DEFAULT_CONFIG.sample_size,
         replay_buffer_size=SAC_DROQ_DEFAULT_CONFIG.replay_buffer_size,
-        target_entropy=(-env.num_actions()),
+        target_entropy=(-0.5 * env.num_actions()),
         discount_factor=SAC_DROQ_DEFAULT_CONFIG.discount_factor,
         tau=SAC_DROQ_DEFAULT_CONFIG.tau,
     )

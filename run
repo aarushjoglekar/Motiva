@@ -1,2 +1,2 @@
 source .venv/bin/activate
-mjpython motiva/main.py
+mjpython -u motiva/main.py
