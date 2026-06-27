@@ -17,5 +17,5 @@ class SAC_DROQ_DEFAULT_CONFIG:
     updates_per_step: int = 1
     sample_size: int = 256
     replay_buffer_size: int = 1000000
-    discount_factor: float = 0.95
+    discount_factor: float = 0.88
     tau: float = 0.005

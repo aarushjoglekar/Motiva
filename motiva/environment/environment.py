@@ -18,8 +18,6 @@ class Environment:
             self.physicsenv.render()
 
     def reset(self, play_audio: bool, record_midi: bool, midi_file: str):
-        if self.piano_audio is not None:
-            self.piano_audio.save_and_close()
         self.piano_audio = PianoAudio(play_audio=play_audio, record_midi=record_midi, midi_file=midi_file)
 
         self.physicsenv.reset()
@@ -30,6 +28,10 @@ class Environment:
         song_obs = self.song.sample_at(0)[0]
 
         return self.get_obs(env_obs, song_obs)
+    
+    def save_piano_audio(self):
+        if self.piano_audio is not None:
+            return self.piano_audio.save_and_close()
 
     def step(self, action: np.ndarray):
         self.step_count += 1

@@ -74,3 +74,4 @@ class PianoAudio:
         if self.record_midi:
             os.makedirs(os.path.dirname(self.midi_file), exist_ok=True)
             self.mid.save(filename=self.midi_file)
+            return self.mid

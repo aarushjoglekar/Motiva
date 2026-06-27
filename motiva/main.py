@@ -7,6 +7,9 @@ import time
 import os
 import torch
 import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
@@ -15,30 +18,40 @@ SEED = 42
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 50000
-VALIDATION_INTERVAL = 3000
+NUM_STEPS = 5000000
+VALIDATION_INTERVAL = 10000
 
 # TESTING SETTINGS
 SAVE_TO_MIDI = False
 
 # SONG SETTINGS
-SONG = Song.from_txt(Song.TWINKLE_TWINKLE_LITTLE_STAR)
+SONG_CHOICE = Song.TWINKLE_TWINKLE_LITTLE_STAR
+SONG = Song.from_txt(name=SONG_CHOICE)
+GROUND_TRUTH = Song.from_midi_string(name=SONG_CHOICE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 
-def run_training(model: SAC_DROQ, env: Environment, model_path: str):
+def run_training(
+    model: SAC_DROQ,
+    env: Environment,
+    model_path: str,
+    song: Song,
+    ground_truth_song: Song,
+):
     os.makedirs(model_path, exist_ok=True)
     num_steps = 0
     episode = 0
     next_validation = VALIDATION_INTERVAL
     num_validations = 0
+    f1_score_steps = []
+    f1_scores = []
     start_time = time.perf_counter()
 
     while num_steps < NUM_STEPS:
         validation_episode = (num_steps >= next_validation) or (
-            num_steps + SONG.length >= NUM_STEPS
+            num_steps + song.length >= NUM_STEPS
         )
         if validation_episode:
             next_validation += VALIDATION_INTERVAL
@@ -49,13 +62,14 @@ def run_training(model: SAC_DROQ, env: Environment, model_path: str):
         else:
             model.train()
 
+        validation_midi_file = os.path.join(
+            model_path,
+            f"valid-{num_validations}-{datetime.now().strftime('%H-%M')}.mid",
+        )
         obs = env.reset(
             play_audio=False,
             record_midi=validation_episode,
-            midi_file=os.path.join(
-                model_path,
-                f"valid-{num_validations}-{datetime.now().strftime('%H-%M')}.mid",
-            ),
+            midi_file=validation_midi_file,
         )
         state = torch.from_numpy(obs).float()
 
@@ -106,7 +120,15 @@ def run_training(model: SAC_DROQ, env: Environment, model_path: str):
         if warmup_episode:
             stats = "Warmup Episode: No Update Statistics"
         elif validation_episode:
-            stats = f"Validation Episode - F1 Score: {0}"
+            f1 = None
+            midi = env.save_piano_audio()
+            if midi is not None:
+                f1 = Song.from_midi(name="", midi=midi).compare_to(
+                    ground_truth=ground_truth_song
+                )
+                f1_score_steps.append(num_steps)
+                f1_scores.append(f1)
+            stats = f"Validation Episode - F1 Score: {f1}"
         else:
             stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps}"
 
@@ -115,6 +137,15 @@ def run_training(model: SAC_DROQ, env: Environment, model_path: str):
         )
 
     print(f"Train Time: {time.perf_counter() - start_time}")
+
+    plt.plot(f1_score_steps, f1_scores)
+    plt.xlabel("Steps")
+    plt.ylabel("F1 Score")
+    plt.title("F1 Score over Training")
+    plt.savefig(
+        os.path.join(model_path, f"f1-history-{datetime.now().strftime('%H-%M')}.png")
+    )
+
     model.save()
 
 
@@ -191,6 +222,12 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
     )
 
     if TRAINING:
-        run_training(model=model, env=env, model_path=model_path)
+        run_training(
+            model=model,
+            env=env,
+            model_path=model_path,
+            song=SONG,
+            ground_truth_song=GROUND_TRUTH,
+        )
     else:
         run_test(model=model, env=env, model_path=model_path)
