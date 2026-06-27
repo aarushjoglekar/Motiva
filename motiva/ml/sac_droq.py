@@ -125,19 +125,27 @@ class SAC_DROQ(torch.nn.Module):
         self.num_critics = num_critics
         self.critics = torch.nn.ModuleList()
         self.critic_targets = torch.nn.ModuleList()
-        self.critic_optimizers = []
         for _ in range(num_critics):
-            critic, target, optimizer = SAC_DROQ.initialize_critic(
+            critic, target = SAC_DROQ.initialize_critic(
                 hidden_layer_size=critic_hidden_layer_size,
                 num_hidden_layers=critic_num_hidden_layers,
                 num_observations=num_observations,
                 num_actions=num_actions,
                 dropout_probability=critic_dropout_probability,
-                lr=critic_lr,
             )
             self.critics.append(critic)
             self.critic_targets.append(target)
-            self.critic_optimizers.append(optimizer)
+
+        self.critic_params = [
+            param for critic in self.critics for param in critic.parameters()
+        ]
+        self.critic_target_params = [
+            target_param
+            for critic_target in self.critic_targets
+            for target_param in critic_target.parameters()
+        ]
+
+        self.critic_optimizer = torch.optim.Adam(self.critic_params, lr=critic_lr)
 
         self.target_entropy = target_entropy
         self.log_alpha = torch.nn.Parameter(torch.zeros(1))
@@ -168,10 +176,7 @@ class SAC_DROQ(torch.nn.Module):
 
             self.actor_optimizer.load_state_dict(loaded["actor_optimizer"])
 
-            for i in range(num_critics):
-                self.critic_optimizers[i].load_state_dict(
-                    loaded["critic_optimizers"][i]
-                )
+            self.critic_optimizer.load_state_dict(loaded["critic_optimizer"])
 
             self.log_alpha_optimizer.load_state_dict(loaded["log_alpha_optimizer"])
 
@@ -260,28 +265,29 @@ class SAC_DROQ(torch.nn.Module):
                         next_q - self.alpha * next_log_probs
                     )
 
-                sum_critic_loss = 0
-                for i, critic in enumerate(self.critics):
-                    self.critic_optimizers[i].zero_grad()
-                    critic_loss = (
+                self.critic_optimizer.zero_grad()
+                critic_losses = torch.stack(
+                    [
                         (
-                            critic.forward(state=states, action=actions, dropout=True)
-                            - critic_target
-                        )
-                        ** 2
-                    ).mean()
-                    critic_loss.backward()
-                    self.critic_optimizers[i].step()
-                    sum_critic_loss += critic_loss.item()
+                            (
+                                critic.forward(
+                                    state=states, action=actions, dropout=True
+                                )
+                                - critic_target
+                            )
+                            ** 2
+                        ).mean()
+                        for critic in self.critics
+                    ]
+                )
+                critic_loss = critic_losses.sum()
+                critic_loss.backward()
+                self.critic_optimizer.step()
 
-                avg_critic_loss += sum_critic_loss / self.num_critics
+                avg_critic_loss += critic_losses.mean().item()
 
                 with torch.no_grad():
-                    for critic, critic_target in zip(self.critics, self.critic_targets):
-                        for param, target_param in zip(
-                            critic.parameters(), critic_target.parameters()
-                        ):
-                            target_param.lerp_(param, self.tau)
+                    torch._foreach_lerp_(self.critic_target_params, self.critic_params, self.tau)  # type: ignore
 
             current_actions, current_log_probs = self.select_action(
                 state=states, deterministic=False
@@ -321,7 +327,7 @@ class SAC_DROQ(torch.nn.Module):
                 current_log_probs.mean().item(),
                 self.alpha,
             )
-        
+
         return None
 
     def save(self):
@@ -329,9 +335,7 @@ class SAC_DROQ(torch.nn.Module):
             {
                 "weights": self.state_dict(),
                 "actor_optimizer": self.actor_optimizer.state_dict(),
-                "critic_optimizers": [
-                    optimizer.state_dict() for optimizer in self.critic_optimizers
-                ],
+                "critic_optimizer": self.critic_optimizer.state_dict(),
                 "log_alpha_optimizer": self.log_alpha_optimizer.state_dict(),
             },
             os.path.join(self.model_path, "model.pth"),
@@ -353,7 +357,6 @@ class SAC_DROQ(torch.nn.Module):
         num_observations: int,
         num_actions: int,
         dropout_probability: float,
-        lr: float,
     ):
         critic = Critic(
             hidden_layer_size=hidden_layer_size,
@@ -373,6 +376,4 @@ class SAC_DROQ(torch.nn.Module):
 
         target.load_state_dict(critic.state_dict())
 
-        optimizer = torch.optim.Adam(params=critic.parameters(), lr=lr)
-
-        return critic, target, optimizer
+        return critic, target
