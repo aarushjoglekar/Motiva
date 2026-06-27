@@ -1,2 +1,7 @@
 source .venv/bin/activate
-mjpython -u motiva/main.py
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    mjpython -u motiva/main.py
+else
+    python -u motiva/main.py
+fi
