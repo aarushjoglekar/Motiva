@@ -50,6 +50,16 @@ def run_training(
     num_validations = 0
     f1_score_steps = []
     f1_scores = []
+    
+    f1_data_path = os.path.join(model_path, "f1_scores.npy")
+    if os.path.exists(f1_data_path):
+        data = np.loadtxt(f1_data_path)
+        f1_score_steps = data[0].tolist()
+        f1_scores = data[1].tolist()
+        num_steps = f1_score_steps[-1] + song.length
+        next_validation = num_steps + VALIDATION_INTERVAL
+        print(f"Resumed with {len(f1_scores)} existing F1 scores")  
+
     start_time = time.perf_counter()
 
     while num_steps < NUM_STEPS:
@@ -147,6 +157,8 @@ def run_training(
         )
 
     print(f"Train Time: {time.perf_counter() - start_time}")
+
+    np.savetxt(f1_data_path, np.array([f1_score_steps, f1_scores]))
 
     plt.plot(f1_score_steps, f1_scores)
     plt.xlabel("Steps")
