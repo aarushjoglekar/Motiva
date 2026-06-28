@@ -11,5 +11,6 @@ motiva/music/songs/*
 !motiva/music/songs/twinkle_twinkle_little_star
 
 replay_buffer.pth
+valid-*.mid
 
 installation_reqs.txt

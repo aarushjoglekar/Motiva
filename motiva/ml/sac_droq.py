@@ -169,6 +169,12 @@ class SAC_DROQ(torch.nn.Module):
             device=device,
         )
 
+        def optimizer_to_device(optimizer: torch.optim.Optimizer, device: str):
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device)
+
         self.model_path = model_path
         try:
             loaded = torch.load(
@@ -177,12 +183,13 @@ class SAC_DROQ(torch.nn.Module):
                 map_location=device,
             )
             self.load_state_dict(loaded["weights"])
-
             self.actor_optimizer.load_state_dict(loaded["actor_optimizer"])
-
             self.critic_optimizer.load_state_dict(loaded["critic_optimizer"])
-
             self.log_alpha_optimizer.load_state_dict(loaded["log_alpha_optimizer"])
+
+            optimizer_to_device(optimizer=self.actor_optimizer, device=device)
+            optimizer_to_device(optimizer=self.critic_optimizer, device=device)
+            optimizer_to_device(optimizer=self.log_alpha_optimizer, device=device)
 
             self.alpha = self.log_alpha.exp().item()
         except FileNotFoundError:

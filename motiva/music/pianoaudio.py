@@ -62,7 +62,7 @@ class PianoAudio:
 
             self.key_pressed[i] = pressed
 
-    def calculate_delta_ticks(self, episode_time):
+    def calculate_delta_ticks(self, episode_time: float):
         delta_ticks = int((episode_time - self.last_event_time) / self.seconds_per_tick)
         self.last_event_time = episode_time
         return delta_ticks
@@ -72,8 +72,8 @@ class PianoAudio:
             self.fluidsynth.all_notes_off(0)
             self.fluidsynth.delete()
 
-        if self.record_midi:
-            return self.mid
-        
         if self.save_midi:
             self.mid.save(filename=self.midi_file)
+
+        if self.record_midi:
+            return self.mid

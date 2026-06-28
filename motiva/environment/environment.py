@@ -17,8 +17,15 @@ class Environment:
         if should_render:
             self.physicsenv.render()
 
-    def reset(self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str):
-        self.piano_audio = PianoAudio(play_audio=play_audio, record_midi=record_midi, save_midi=save_midi, midi_file=midi_file)
+    def reset(
+        self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str
+    ):
+        self.piano_audio = PianoAudio(
+            play_audio=play_audio,
+            record_midi=record_midi,
+            save_midi=save_midi,
+            midi_file=midi_file,
+        )
 
         self.physicsenv.reset()
         self.step_count = 0
@@ -28,7 +35,7 @@ class Environment:
         song_obs = self.song.sample_at(0)[0]
 
         return self.get_obs(env_obs, song_obs)
-    
+
     def save_piano_audio(self):
         if self.piano_audio is not None:
             return self.piano_audio.save_and_close()

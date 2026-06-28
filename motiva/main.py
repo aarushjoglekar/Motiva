@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star_v3"
+MODEL_NAME = "twinkle_twinkle_little_star"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 10000
-VALIDATION_INTERVAL = 2100
+NUM_STEPS = 1000000
+VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 
 # TESTING SETTINGS
@@ -49,21 +49,32 @@ def run_training(
     num_validations = 0
     f1_score_steps = []
     f1_scores = []
+    
+    prev_target_num_states = 0
 
-    f1_data_path = os.path.join(model_path, "f1_scores.npy")
-    if os.path.exists(f1_data_path):
-        data = np.loadtxt(f1_data_path)
-        f1_score_steps = data[0].tolist()
-        f1_scores = data[1].tolist()
-        num_steps = f1_score_steps[-1] + SONG.length
+    train_data_path = os.path.join(model_path, "train_data.txt")
+    if os.path.exists(train_data_path):
+        with open(train_data_path) as f:
+            header = f.readline()
+        
+        episode = int(header.split("episode=")[1].split(" ")[0])
+        prev_target_num_states = int(header.split("target_num_steps=")[1].split(" ")[0])
+        num_steps = int(header.split("actual_num_steps=")[1].strip())
+        
         next_validation = num_steps + VALIDATION_INTERVAL
+
+        data = np.loadtxt(train_data_path)
+        f1_score_steps = data[:, 0].tolist()
+        f1_scores = data[:, 1].tolist()
         print(f"Resumed with {len(f1_scores)} existing F1 scores")
 
     start_time = time.perf_counter()
 
-    while num_steps < NUM_STEPS:
+    total_target_steps = NUM_STEPS + prev_target_num_states
+
+    while num_steps < total_target_steps:
         validation_episode = (num_steps >= next_validation) or (
-            num_steps + SONG.length >= NUM_STEPS
+            num_steps + SONG.length >= total_target_steps
         )
         if validation_episode:
             next_validation += VALIDATION_INTERVAL
@@ -76,12 +87,12 @@ def run_training(
 
         validation_midi_file = os.path.join(
             model_path,
-            f"valid-{num_validations}-{datetime.now().strftime('%H-%M')}.mid",
+            f"valid-{num_validations}.mid",
         )
         state = env.reset(
             play_audio=False,
             record_midi=validation_episode,
-            save_midi=SAVE_TO_MIDI_VALID,
+            save_midi=(validation_episode and SAVE_TO_MIDI_VALID),
             midi_file=validation_midi_file,
         )
         state = torch.from_numpy(state).float().to(device)
@@ -158,15 +169,18 @@ def run_training(
 
     print(f"Train Time: {time.perf_counter() - start_time}")
 
-    np.savetxt(f1_data_path, np.array([f1_score_steps, f1_scores]))
+    np.savetxt(
+        train_data_path,
+        np.column_stack([f1_score_steps, f1_scores]),
+        header=f"episode={episode} || target_num_steps={total_target_steps} || actual_num_steps={num_steps}",
+        fmt="%.6f",
+    )
 
     plt.plot(f1_score_steps, f1_scores)
     plt.xlabel("Steps")
     plt.ylabel("F1 Score")
     plt.title("F1 Score over Training")
-    plt.savefig(
-        os.path.join(model_path, f"f1-history-{datetime.now().strftime('%H-%M')}.png")
-    )
+    plt.savefig(os.path.join(model_path, "f1-history.png"))
 
     model.save()
 
