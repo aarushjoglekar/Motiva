@@ -14,17 +14,18 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star_v2"
+MODEL_NAME = "twinkle_twinkle_little_star_v3"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = False
-NUM_STEPS = 1000000
-VALIDATION_INTERVAL = 10000
+TRAINING = True
+NUM_STEPS = 10000
+VALIDATION_INTERVAL = 2100
+SAVE_TO_MIDI_VALID = False
 
 # TESTING SETTINGS
-SAVE_TO_MIDI = False
+SAVE_TO_MIDI_TEST = False
 
 # SONG SETTINGS
 SONG_CHOICE = Song.TWINKLE_TWINKLE_LITTLE_STAR
@@ -39,8 +40,6 @@ def run_training(
     model: SAC_DROQ,
     env: Environment,
     model_path: str,
-    song: Song,
-    ground_truth_song: Song,
     device: str,
 ):
     os.makedirs(model_path, exist_ok=True)
@@ -50,21 +49,21 @@ def run_training(
     num_validations = 0
     f1_score_steps = []
     f1_scores = []
-    
+
     f1_data_path = os.path.join(model_path, "f1_scores.npy")
     if os.path.exists(f1_data_path):
         data = np.loadtxt(f1_data_path)
         f1_score_steps = data[0].tolist()
         f1_scores = data[1].tolist()
-        num_steps = f1_score_steps[-1] + song.length
+        num_steps = f1_score_steps[-1] + SONG.length
         next_validation = num_steps + VALIDATION_INTERVAL
-        print(f"Resumed with {len(f1_scores)} existing F1 scores")  
+        print(f"Resumed with {len(f1_scores)} existing F1 scores")
 
     start_time = time.perf_counter()
 
     while num_steps < NUM_STEPS:
         validation_episode = (num_steps >= next_validation) or (
-            num_steps + song.length >= NUM_STEPS
+            num_steps + SONG.length >= NUM_STEPS
         )
         if validation_episode:
             next_validation += VALIDATION_INTERVAL
@@ -82,6 +81,7 @@ def run_training(
         state = env.reset(
             play_audio=False,
             record_midi=validation_episode,
+            save_midi=SAVE_TO_MIDI_VALID,
             midi_file=validation_midi_file,
         )
         state = torch.from_numpy(state).float().to(device)
@@ -144,11 +144,11 @@ def run_training(
             midi = env.save_piano_audio()
             if midi is not None:
                 precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
-                    ground_truth=ground_truth_song
+                    ground_truth=GROUND_TRUTH
                 )
                 f1_score_steps.append(num_steps)
                 f1_scores.append(f1)
-            stats = f"Validation Episode - F1 Score: {f1}, Precision: {precision}, Recall: {recall}"
+            stats = f"Validation Episode - F1: {f1}, Precision: {precision}, Recall: {recall}"
         else:
             stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
 
@@ -186,7 +186,8 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
 
     state = env.reset(
         play_audio=True,
-        record_midi=SAVE_TO_MIDI,
+        record_midi=True,
+        save_midi=SAVE_TO_MIDI_TEST,
         midi_file=os.path.join(
             model_path, f"test-{datetime.now().strftime('%H-%M')}.mid"
         ),
@@ -213,12 +214,21 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     if not closed_viewer:
         time.sleep(2)
 
-    print(f"Test Episode || Total Reward: {total_reward}")
+    additional = ""
+    midi = env.save_piano_audio()
+    if midi is not None:
+        precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
+            ground_truth=GROUND_TRUTH
+        )
+        additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
+
+    print(f"Test Episode || Total Reward: {total_reward}{additional}")
 
 
 with Environment(SONG, should_render=(not TRAINING)) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"
 
@@ -252,9 +262,12 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
             model=model,
             env=env,
             model_path=model_path,
-            song=SONG,
-            ground_truth_song=GROUND_TRUTH,
             device=device,
         )
     else:
-        run_test(model=model, env=env, model_path=model_path, device=device)
+        run_test(
+            model=model,
+            env=env,
+            model_path=model_path,
+            device=device,
+        )
