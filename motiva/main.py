@@ -20,8 +20,8 @@ DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 1000000
-VALIDATION_INTERVAL = 10000
+NUM_STEPS = 10000
+VALIDATION_INTERVAL = 2100
 SAVE_TO_MIDI_VALID = False
 
 # TESTING SETTINGS
@@ -51,6 +51,7 @@ def run_training(
     f1_scores = []
     
     prev_target_num_states = 0
+    total_train_time = 0
 
     train_data_path = os.path.join(model_path, "train_data.txt")
     if os.path.exists(train_data_path):
@@ -59,7 +60,8 @@ def run_training(
         
         episode = int(header.split("episode=")[1].split(" ")[0])
         prev_target_num_states = int(header.split("target_num_steps=")[1].split(" ")[0])
-        num_steps = int(header.split("actual_num_steps=")[1].strip())
+        num_steps = int(header.split("actual_num_steps=")[1].split(" ")[0])
+        total_train_time = float(header.split("total_train_time=")[1].strip())
         
         next_validation = num_steps + VALIDATION_INTERVAL
 
@@ -167,12 +169,14 @@ def run_training(
             f"Episode: {episode} || Reward: {sum_reward} || {stats} || Total Steps: {num_steps}"
         )
 
-    print(f"Train Time: {time.perf_counter() - start_time}")
+    train_checkpoint_time = time.perf_counter() - start_time
+    total_train_time += train_checkpoint_time
+    print(f"Train Checkpoint Time: {train_checkpoint_time / 3600} hrs || Total Train Time: {total_train_time / 3600} hrs")
 
     np.savetxt(
         train_data_path,
         np.column_stack([f1_score_steps, f1_scores]),
-        header=f"episode={episode} || target_num_steps={total_target_steps} || actual_num_steps={num_steps}",
+        header=f"episode={episode} || target_num_steps={total_target_steps} || actual_num_steps={num_steps} || total_train_time={total_train_time}",
         fmt="%.6f",
     )
 
