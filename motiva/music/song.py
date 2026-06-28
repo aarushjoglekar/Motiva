@@ -58,7 +58,7 @@ class Song:
         recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
-        return f1
+        return precision, recall, f1
 
     def to_midi(self):
         ticks_per_beat = 480

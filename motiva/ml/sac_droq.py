@@ -172,7 +172,9 @@ class SAC_DROQ(torch.nn.Module):
         self.model_path = model_path
         try:
             loaded = torch.load(
-                os.path.join(self.model_path, "model.pth"), weights_only=True
+                os.path.join(self.model_path, "model.pth"),
+                weights_only=True,
+                map_location=device,
             )
             self.load_state_dict(loaded["weights"])
 
@@ -188,7 +190,9 @@ class SAC_DROQ(torch.nn.Module):
 
         try:
             loaded = torch.load(
-                os.path.join(self.model_path, "replay_buffer.pth"), weights_only=True
+                os.path.join(self.model_path, "replay_buffer.pth"),
+                weights_only=True,
+                map_location=device,
             )
             self.replay_buffer.load(loaded["replay_buffer"])
         except FileNotFoundError:

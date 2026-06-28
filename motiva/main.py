@@ -19,7 +19,7 @@ SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = True
+TRAINING = False
 NUM_STEPS = 1000000
 VALIDATION_INTERVAL = 10000
 
@@ -133,12 +133,12 @@ def run_training(
             f1 = None
             midi = env.save_piano_audio()
             if midi is not None:
-                f1 = Song.from_midi(name="", midi=midi).compare_to(
+                precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
                     ground_truth=ground_truth_song
                 )
                 f1_score_steps.append(num_steps)
                 f1_scores.append(f1)
-            stats = f"Validation Episode - F1 Score: {f1}"
+            stats = f"Validation Episode - F1 Score: {f1}, Precision: {precision}, Recall: {recall}"
         else:
             stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
 
