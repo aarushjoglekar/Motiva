@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star_v1"
+MODEL_NAME = "twinkle_twinkle_little_star_v2"
 SEED = 42
 
 # TRAINING SETTINGS
@@ -80,6 +80,9 @@ def run_training(
         sum_log_prob = 0.0
         sum_alpha = 0.0
         steps = 0
+
+        episode_update_count = 0
+        episode_start_time = time.perf_counter()
         while True:
             action, _ = model.select_action(
                 state=state, deterministic=validation_episode
@@ -97,6 +100,8 @@ def run_training(
                 )
 
                 if updated is not None:
+                    episode_update_count += model.updates_per_step
+
                     actor_loss, critic_loss, log_probs, alpha = updated
                     sum_actor_loss += actor_loss
                     sum_critic_loss += critic_loss
@@ -116,6 +121,8 @@ def run_training(
         episode += 1
         num_steps += steps
 
+        episode_time = time.perf_counter() - episode_start_time
+
         stats = None
         if warmup_episode:
             stats = "Warmup Episode: No Update Statistics"
@@ -130,7 +137,7 @@ def run_training(
                 f1_scores.append(f1)
             stats = f"Validation Episode - F1 Score: {f1}"
         else:
-            stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps}"
+            stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
 
         print(
             f"Episode: {episode} || Reward: {sum_reward} || {stats} || Total Steps: {num_steps}"
