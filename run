@@ -1,7 +1,7 @@
 source .venv/bin/activate
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    mjpython -u motiva/main.py
+    mjpython motiva/main.py
 else
-    python -u motiva/main.py
+    python motiva/main.py
 fi

@@ -109,7 +109,7 @@ class SAC_DROQ(torch.nn.Module):
         target_entropy: float,
         discount_factor: float,
         tau: float,
-        device: str
+        device: str,
     ):
         super().__init__()
 
@@ -166,7 +166,7 @@ class SAC_DROQ(torch.nn.Module):
             num_actions=num_actions,
             sample_size=sample_size,
             max_size=replay_buffer_size,
-            device=device
+            device=device,
         )
 
         self.model_path = model_path
@@ -193,10 +193,6 @@ class SAC_DROQ(torch.nn.Module):
             self.replay_buffer.load(loaded["replay_buffer"])
         except FileNotFoundError:
             print("Replay buffer not loaded")
-
-        # self.actor = torch.compile(self.actor)
-        # self.critics = torch.nn.ModuleList([torch.compile(c) for c in self.critics])
-        # self.critic_targets = torch.nn.ModuleList([torch.compile(c) for c in self.critic_targets])
 
     def select_action(self, state: torch.Tensor, deterministic: bool):
         y = self.actor(state)
@@ -255,23 +251,37 @@ class SAC_DROQ(torch.nn.Module):
                     next_actions, next_log_probs = self.select_action(
                         state=next_states, deterministic=False
                     )
-                    next_q = (
-                        self.batch_critics_forward(
-                            critics=self.critic_targets,
-                            states=next_states,
-                            actions=next_actions,
-                            dropout=True,
-                        )
-                        .min(dim=0)
-                        .values
-                    )
+                    next_q = torch.min(
+                        torch.stack(
+                            [
+                                critic.forward(
+                                    state=next_states, action=next_actions, dropout=True
+                                )
+                                for critic in self.critic_targets
+                            ],
+                            dim=0,
+                        ),
+                        dim=0,
+                    ).values
                     critic_target = rewards + self.discount_factor * (
                         next_q - self.alpha * next_log_probs
                     )
 
                 self.critic_optimizer.zero_grad()
-                q_all = self.batch_critics_forward(critics=self.critics, states=states, actions=actions, dropout=True)
-                critic_losses = ((q_all - critic_target) ** 2).mean(dim=1)
+                critic_losses = torch.stack(
+                    [
+                        (
+                            (
+                                critic.forward(
+                                    state=states, action=actions, dropout=True
+                                )
+                                - critic_target
+                            )
+                            ** 2
+                        ).mean()
+                        for critic in self.critics
+                    ]
+                )
                 critic_loss = critic_losses.sum()
                 critic_loss.backward()
                 self.critic_optimizer.step()
@@ -286,8 +296,21 @@ class SAC_DROQ(torch.nn.Module):
             )
 
             self.actor_optimizer.zero_grad()
-            q_actor = self.batch_critics_forward(critics=self.critics, states=states, actions=current_actions, dropout=False)
-            actor_loss = (-q_actor.mean(dim=0) + self.alpha * current_log_probs).mean()
+            actor_loss = (
+                -torch.mean(
+                    torch.stack(
+                        [
+                            critic.forward(
+                                state=states, action=current_actions, dropout=False
+                            )
+                            for critic in self.critics
+                        ],
+                        dim=0,
+                    ),
+                    dim=0,
+                )
+                + self.alpha * current_log_probs
+            ).mean()
             actor_loss.backward()
             self.actor_optimizer.step()
 
@@ -308,23 +331,6 @@ class SAC_DROQ(torch.nn.Module):
             )
 
         return None
-
-    def batch_critics_forward(
-        self,
-        critics: torch.nn.ModuleList,
-        states: torch.Tensor,
-        actions: torch.Tensor,
-        dropout: bool,
-    ):
-        params, buffers = torch.func.stack_module_state(list(critics))
-        template = critics[0]
-
-        def single_function(p, b):
-            return torch.func.functional_call(
-                template, (p, b), (states, actions, dropout)
-            )
-
-        return torch.func.vmap(single_function, randomness="different")(params, buffers)
 
     def save(self):
         torch.save(
