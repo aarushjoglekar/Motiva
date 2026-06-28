@@ -109,6 +109,7 @@ class SAC_DROQ(torch.nn.Module):
         target_entropy: float,
         discount_factor: float,
         tau: float,
+        device: str
     ):
         super().__init__()
 
@@ -165,6 +166,7 @@ class SAC_DROQ(torch.nn.Module):
             num_actions=num_actions,
             sample_size=sample_size,
             max_size=replay_buffer_size,
+            device=device
         )
 
         self.model_path = model_path

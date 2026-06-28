@@ -4,10 +4,11 @@ import torch
 class ReplayBuffer:
     def __init__(
         self,
-        num_observations,
-        num_actions,
-        sample_size,
-        max_size,
+        num_observations: int,
+        num_actions: int,
+        sample_size: int,
+        max_size: int,
+        device: str,
     ):
         self.max_size = max_size
         self.sample_size = sample_size
@@ -15,12 +16,14 @@ class ReplayBuffer:
         self.length = 0
         self.pointer = 0
 
-        self.states = torch.zeros(self.max_size, num_observations)
-        self.actions = torch.zeros(self.max_size, num_actions)
-        self.rewards = torch.zeros(self.max_size)
-        self.is_truncated = torch.zeros(self.max_size, dtype=torch.bool)
+        self.states = torch.zeros(self.max_size, num_observations, device=device)
+        self.actions = torch.zeros(self.max_size, num_actions, device=device)
+        self.rewards = torch.zeros(self.max_size, device=device)
+        self.is_truncated = torch.zeros(self.max_size, dtype=torch.bool, device=device)
 
         self.truncated_next_states = dict()
+        
+        self.device = device
 
     def load(self, data):
         self.states = data["states"]
@@ -69,7 +72,7 @@ class ReplayBuffer:
 
     def sample_random(self):
         indices = torch.randint(
-            0, self.length - 1, (self.sample_size,)
+            0, self.length - 1, (self.sample_size,), device=self.device
         )  # sample one less than the lenght
 
         forbidden = (self.pointer - 1) % self.length

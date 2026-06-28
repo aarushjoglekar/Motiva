@@ -8,13 +8,15 @@ import os
 import torch
 import numpy as np
 import matplotlib
-matplotlib.use('agg')
+
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
 MODEL_NAME = "twinkle_twinkle_little_star_v2"
 SEED = 42
+DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
@@ -39,6 +41,7 @@ def run_training(
     model_path: str,
     song: Song,
     ground_truth_song: Song,
+    device: str,
 ):
     os.makedirs(model_path, exist_ok=True)
     num_steps = 0
@@ -66,12 +69,12 @@ def run_training(
             model_path,
             f"valid-{num_validations}-{datetime.now().strftime('%H-%M')}.mid",
         )
-        obs = env.reset(
+        state = env.reset(
             play_audio=False,
             record_midi=validation_episode,
             midi_file=validation_midi_file,
         )
-        state = torch.from_numpy(obs).float()
+        state = torch.from_numpy(state).float().to(device)
 
         warmup_episode = False
         sum_reward = 0.0
@@ -87,8 +90,8 @@ def run_training(
             action, _ = model.select_action(
                 state=state, deterministic=validation_episode
             )
-            next_obs, reward, truncated = env.step(action=action.detach().numpy())
-            next_state = torch.from_numpy(next_obs).float()
+            next_obs, reward, truncated = env.step(action=action.detach().cpu().numpy())
+            next_state = torch.from_numpy(next_obs).float().to(device)
 
             if not validation_episode:
                 updated = model.update(
@@ -156,7 +159,7 @@ def run_training(
     model.save()
 
 
-def run_test(model: SAC_DROQ, env: Environment, model_path: str):
+def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     time.sleep(0.5)
 
     def pace():
@@ -176,14 +179,15 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str):
             model_path, f"test-{datetime.now().strftime('%H-%M')}.mid"
         ),
     )
-    state = torch.from_numpy(state).float()
+    state = torch.from_numpy(state).float().to(device)
 
     total_reward = 0.0
     closed_viewer = False
     while True:
-        action, _ = model.select_action(state=state, deterministic=True)
-        next_state, reward, truncated = env.step(action=action.detach().numpy())
-        state = torch.from_numpy(next_state).float()
+        with torch.no_grad():
+            action, _ = model.select_action(state=state, deterministic=True)
+        next_state, reward, truncated = env.step(action=action.detach().cpu().numpy())
+        state = torch.from_numpy(next_state).float().to(device)
 
         total_reward += reward
         pace()
@@ -203,6 +207,8 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str):
 with Environment(SONG, should_render=(not TRAINING)) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
+
+    device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"
 
     model = SAC_DROQ(
         model_path=model_path,
@@ -226,7 +232,8 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
         target_entropy=(-0.5 * env.num_actions()),
         discount_factor=SAC_DROQ_DEFAULT_CONFIG.discount_factor,
         tau=SAC_DROQ_DEFAULT_CONFIG.tau,
-    )
+        device=device,
+    ).to(device=device)
 
     if TRAINING:
         run_training(
@@ -235,6 +242,7 @@ with Environment(SONG, should_render=(not TRAINING)) as env:
             model_path=model_path,
             song=SONG,
             ground_truth_song=GROUND_TRUTH,
+            device=device,
         )
     else:
-        run_test(model=model, env=env, model_path=model_path)
+        run_test(model=model, env=env, model_path=model_path, device=device)
