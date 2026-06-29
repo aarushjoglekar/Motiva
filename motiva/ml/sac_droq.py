@@ -236,14 +236,12 @@ class SAC_DROQ(torch.nn.Module):
         next_state: torch.Tensor,
         action: torch.Tensor,
         reward: float,
-        truncated: bool,
     ):
         self.replay_buffer.add_sample(
             state=state.detach(),
             next_state=next_state.detach(),
             action=action.detach(),
             reward=reward,
-            truncated=truncated,
         )
 
         if (

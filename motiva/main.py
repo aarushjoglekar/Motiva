@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star"
+MODEL_NAME = "twinkle_twinkle_little_star_v2"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = False
+TRAINING = True
 NUM_STEPS = 1000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
@@ -49,7 +49,7 @@ def run_training(
     num_validations = 0
     f1_score_steps = []
     f1_scores = []
-    
+
     prev_target_num_states = 0
     total_train_time = 0
 
@@ -57,12 +57,12 @@ def run_training(
     if os.path.exists(train_data_path):
         with open(train_data_path) as f:
             header = f.readline()
-        
+
         episode = int(header.split("episode=")[1].split(" ")[0])
         prev_target_num_states = int(header.split("target_num_steps=")[1].split(" ")[0])
         num_steps = int(header.split("actual_num_steps=")[1].split(" ")[0])
         total_train_time = float(header.split("total_train_time=")[1].strip())
-        
+
         next_validation = num_steps + VALIDATION_INTERVAL
 
         data = np.loadtxt(train_data_path)
@@ -118,11 +118,7 @@ def run_training(
 
             if not validation_episode:
                 updated = model.update(
-                    state=state,
-                    next_state=next_state,
-                    action=action,
-                    reward=reward,
-                    truncated=truncated,
+                    state=state, next_state=next_state, action=action, reward=reward
                 )
 
                 if updated is not None:
@@ -171,7 +167,9 @@ def run_training(
 
     train_checkpoint_time = time.perf_counter() - start_time
     total_train_time += train_checkpoint_time
-    print(f"Train Checkpoint Time: {train_checkpoint_time / 3600} hrs || Total Train Time: {total_train_time / 3600} hrs")
+    print(
+        f"Train Checkpoint Time: {train_checkpoint_time / 3600} hrs || Total Train Time: {total_train_time / 3600} hrs"
+    )
 
     np.savetxt(
         train_data_path,
