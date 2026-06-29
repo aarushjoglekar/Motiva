@@ -151,8 +151,5 @@ class Environment:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.physicsenv.viewer is not None:
-            self.physicsenv.viewer.close()
+            self.physicsenv.viewer.__exit__(exc_type, exc_val, exc_tb)
             self.physicsenv.viewer = None
-
-        if self.piano_audio is not None and exc_type is None:
-            self.piano_audio.save_and_close()
