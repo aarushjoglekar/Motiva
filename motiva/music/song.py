@@ -7,6 +7,7 @@ import mido
 class Song:
     RESOLUTION = 20  # per second
     LOOKAHEAD = 10
+    START_BUFFER = 10
 
     NUM_PIANO_NOTES = 88
     NUM_ACTIVE_FINGERS = 10
@@ -18,8 +19,20 @@ class Song:
 
     def __init__(self, name: str, data: np.ndarray, fingers_to_keys_data: np.ndarray):
         self.name = name
-        self.data = data
-        self.fingers_to_keys_data = fingers_to_keys_data
+        self.data = np.concatenate(
+            [np.zeros((Song.START_BUFFER, *data.shape[1:]), dtype=np.int16), data],
+            axis=0,
+        )
+        self.fingers_to_keys_data = np.concatenate(
+            [
+                np.zeros(
+                    (Song.START_BUFFER, *fingers_to_keys_data.shape[1:]), dtype=np.int16
+                )
+                - 1,
+                fingers_to_keys_data,
+            ],
+            axis=0,
+        )
         self.length = len(self.data)
 
     def sample_at(self, time: float):
@@ -40,23 +53,29 @@ class Song:
 
     def total_time(self):
         return self.length / Song.RESOLUTION
-    
-    def compare_to(self, ground_truth:"Song"):
+
+    def compare_to(self, ground_truth: "Song"):
         length = max(self.length, ground_truth.length)
 
         truth = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=bool)
-        truth[:ground_truth.length] = ground_truth.data[:, :Song.NUM_PIANO_NOTES].astype(bool)
+        truth[: ground_truth.length] = ground_truth.data[
+            :, : Song.NUM_PIANO_NOTES
+        ].astype(bool)
 
         pred = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=bool)
-        pred[:self.length] = self.data[:, :Song.NUM_PIANO_NOTES].astype(bool)
+        pred[: self.length] = self.data[:, : Song.NUM_PIANO_NOTES].astype(bool)
 
         tp = np.logical_and(pred, truth).sum()
         fp = np.logical_and(pred, ~truth).sum()
         fn = np.logical_and(~pred, truth).sum()
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (
+            2 * precision * recall / (precision + recall)
+            if (precision + recall) > 0
+            else 0.0
+        )
 
         return precision, recall, f1
 
@@ -158,13 +177,13 @@ class Song:
         return Song(
             name, np.array(data, dtype=int), np.array(fingers_to_keys_data, dtype=int)
         )
-    
+
     @staticmethod
-    def from_midi_string(name: str): # finger data left empty
+    def from_midi_string(name: str):  # finger data left empty
         DIR = os.path.dirname(os.path.abspath(__file__))
         midi = mido.MidiFile(os.path.join(DIR, f"songs/{name}/{name}.mid"))
 
-        return Song.from_midi(name=name, midi=midi)   
+        return Song.from_midi(name=name, midi=midi)
 
     @staticmethod
     def from_midi(name: str, midi: mido.MidiFile):
@@ -203,4 +222,4 @@ class Song:
         for note_index, start, end in notes:
             data[max(0, start) : max(0, end), note_index] = 1
 
-        return Song(name, data, fingers_to_keys_data)     
+        return Song(name, data, fingers_to_keys_data)

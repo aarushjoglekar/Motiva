@@ -7,10 +7,18 @@ from music.song import Song
 
 
 class PhysicsEnv:
-    def __init__(self):
+    def __init__(self, seed: int):
         # instantiation
         self.model, self.data, piano_y_min, piano_y_max = self.initialize_models()
         self.viewer = None
+
+        # ty joint ides
+        self.ry_joint_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_JOINT, "rh_forearm_ty"
+        )
+        self.ly_joint_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_JOINT, "lh_forearm_ty"
+        )
 
         # tz actuator and joint ids
         self.rz_actuator_id = mujoco.mj_name2id(
@@ -101,6 +109,9 @@ class PhysicsEnv:
         self.physics_steps_per_env_step = round(
             (1 / Song.RESOLUTION) / self.model.opt.timestep
         )
+        
+        # random state
+        self.rng = np.random.RandomState(seed)
 
     # action is a list indexed by actuator id of position values from -1 to 1
     # step will automatically scale based on each control range
@@ -149,6 +160,16 @@ class PhysicsEnv:
 
     def reset(self):
         mujoco.mj_resetData(self.model, self.data)
+        mujoco.mj_forward(self.model, self.data)
+
+        offset = self.rng.uniform(-0.05, 0.05)
+        for joint_id in [self.ry_joint_id, self.ly_joint_id]:
+            lo = self.model.jnt_range[joint_id, 0]
+            hi = self.model.jnt_range[joint_id, 1]
+            self.data.qpos[self.model.jnt_qposadr[joint_id]] = np.clip(
+                self.data.qpos[self.model.jnt_qposadr[joint_id]] + offset, lo, hi
+            )
+
         mujoco.mj_forward(self.model, self.data)
 
     def viewer_running(self):
@@ -203,12 +224,12 @@ class PhysicsEnv:
         # set forearm positions
         model.body_pos[rh_forearm_id] = [
             forward_offset,
-            piano_center + piano_half_length / 2.0,
+            piano_center + piano_half_length / 3.0,
             forearm_z,
         ]
         model.body_pos[lh_forearm_id] = [
             forward_offset,
-            piano_center - piano_half_length / 2.0,
+            piano_center - piano_half_length / 3.0,
             forearm_z,
         ]
 

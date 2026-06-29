@@ -7,8 +7,8 @@ import helpers.helpers as helpers
 
 
 class Environment:
-    def __init__(self, song: Song, should_render: bool):
-        self.physicsenv = PhysicsEnv()
+    def __init__(self, song: Song, should_render: bool, seed: int):
+        self.physicsenv = PhysicsEnv(seed=seed)
 
         self.song = song
         self.should_render = should_render

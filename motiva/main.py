@@ -243,7 +243,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     print(f"Test Episode || Total Reward: {total_reward}{additional}")
 
 
-with Environment(SONG, should_render=(not TRAINING)) as env:
+with Environment(SONG, should_render=(not TRAINING), seed=SEED) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
