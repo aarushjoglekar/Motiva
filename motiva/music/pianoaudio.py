@@ -6,6 +6,8 @@ import mido
 class PianoAudio:
     PRESS_THRESHOLD = 0.75
     MAX_QVEL = 3
+    MIN_AUDIO_VEL = 80
+    MAX_AUDIO_VEL = 127
 
     def __init__(self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file:str):
         self.play_audio = play_audio
@@ -39,7 +41,7 @@ class PianoAudio:
             was_pressed = self.key_pressed[i]
 
             if pressed and not was_pressed:
-                velocity = max(1, int(np.clip(abs(piano_qvel[i]) / self.MAX_QVEL, 0.0, 1.0) * 127)) # scale from 1 to 127 (0 is off so avoid that)
+                velocity = max(1, int(np.clip(abs(piano_qvel[i]) / self.MAX_QVEL, 0.0, 1.0) * (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL) + PianoAudio.MIN_AUDIO_VEL))
                 if self.play_audio:
                     self.fluidsynth.noteon(0, 21 + i, velocity)
                 if self.record_midi or self.save_midi:
