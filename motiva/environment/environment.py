@@ -129,8 +129,21 @@ class Environment:
         ]
         joint_velocities = self.physicsenv.data.qvel[self.physicsenv.hand_joint_ids]
         energy_penalty = np.dot(np.abs(joint_torques), np.abs(joint_velocities))
+        
+        # no forearm collision reward
+        colliding = False
+        rh = self.physicsenv.rh_forearm_geom_ids
+        lh = self.physicsenv.lh_forearm_geom_ids
+        for i in range(self.physicsenv.data.ncon):
+            contact = self.physicsenv.data.contact[i]
+            if contact.dist > 1e-8:
+                continue
+            if (contact.geom1 in rh and contact.geom2 in lh) or (contact.geom1 in lh and contact.geom2 in rh):
+                colliding = True
+                break
+        forearm_no_collision_reward = 0 if colliding else 0.5
 
-        return key_press_reward + finger_dist_reward - 0.005 * energy_penalty
+        return key_press_reward + finger_dist_reward - 0.005 * energy_penalty + forearm_no_collision_reward
 
     def num_actions(self):
         return self.physicsenv.model.nu

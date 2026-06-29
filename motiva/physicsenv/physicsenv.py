@@ -9,8 +9,18 @@ from music.song import Song
 class PhysicsEnv:
     def __init__(self, seed: int):
         # instantiation
-        self.model, self.data, piano_y_min, piano_y_max = self.initialize_models()
+        self.model, self.data, piano_y_min, piano_y_max, rh_forearm_id, lh_forearm_id = self.initialize_models()
         self.viewer = None
+                
+        # forearm geom ids
+        self.rh_forearm_geom_ids = set(range(
+            self.model.body_geomadr[rh_forearm_id],
+            self.model.body_geomadr[rh_forearm_id] + self.model.body_geomnum[rh_forearm_id]
+        ))
+        self.lh_forearm_geom_ids = set(range(
+            self.model.body_geomadr[lh_forearm_id],
+            self.model.body_geomadr[lh_forearm_id] + self.model.body_geomnum[lh_forearm_id]
+        ))
 
         # ty joint ides
         self.ry_joint_id = mujoco.mj_name2id(
@@ -217,7 +227,7 @@ class PhysicsEnv:
         )  # white keys are at z=0.01125
         forearm_z = key_surface_z + hover_offset
 
-        # forearm ideas
+        # forearm ids
         rh_forearm_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "rh_forearm")
         lh_forearm_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "lh_forearm")
 
@@ -268,4 +278,4 @@ class PhysicsEnv:
         # initial forward pass to recompute positions from pre-updated positions
         mujoco.mj_forward(model, data)
 
-        return model, data, y_min, y_max
+        return model, data, y_min, y_max, rh_forearm_id, lh_forearm_id

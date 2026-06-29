@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "somewhere_over_the_rainbow"
+MODEL_NAME = "twinkle_twinkle_little_star"
 SEED = 42
 DISABLE_CUDA = False
 
@@ -28,7 +28,7 @@ SAVE_TO_MIDI_VALID = False
 SAVE_TO_MIDI_TEST = False
 
 # SONG SETTINGS
-SONG_CHOICE = Song.SOMEWHERE_OVER_THE_RAINBOW
+SONG_CHOICE = Song.TWINKLE_TWINKLE_LITTLE_STAR
 SONG = Song.from_txt(name=SONG_CHOICE)
 GROUND_TRUTH = Song.from_midi_string(name=SONG_CHOICE)
 
