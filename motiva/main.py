@@ -30,7 +30,6 @@ SAVE_TO_MIDI_TEST = False
 # SONG SETTINGS
 SONG_CHOICE = Song.TWINKLE_TWINKLE_LITTLE_STAR
 SONG = Song.from_txt(name=SONG_CHOICE)
-GROUND_TRUTH = Song.from_midi_string(name=SONG_CHOICE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -153,7 +152,7 @@ def run_training(
             midi = env.save_piano_audio()
             if midi is not None:
                 precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
-                    ground_truth=GROUND_TRUTH
+                    ground_truth=SONG
                 )
                 f1_score_steps.append(num_steps)
                 f1_scores.append(f1)
@@ -234,7 +233,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     midi = env.save_piano_audio()
     if midi is not None:
         precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
-            ground_truth=GROUND_TRUTH
+            ground_truth=SONG
         )
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
 

@@ -19,20 +19,8 @@ class Song:
 
     def __init__(self, name: str, data: np.ndarray, fingers_to_keys_data: np.ndarray):
         self.name = name
-        self.data = np.concatenate(
-            [np.zeros((Song.START_BUFFER, *data.shape[1:]), dtype=np.int16), data],
-            axis=0,
-        )
-        self.fingers_to_keys_data = np.concatenate(
-            [
-                np.zeros(
-                    (Song.START_BUFFER, *fingers_to_keys_data.shape[1:]), dtype=np.int16
-                )
-                - 1,
-                fingers_to_keys_data,
-            ],
-            axis=0,
-        )
+        self.data = data
+        self.fingers_to_keys_data = fingers_to_keys_data
         self.length = len(self.data)
 
     def sample_at(self, time: float):
@@ -174,19 +162,28 @@ class Song:
                     data[index][active_finger + Song.NUM_PIANO_NOTES] = 1
                     fingers_to_keys_data[index][active_finger] = active_note
 
-        return Song(
-            name, np.array(data, dtype=int), np.array(fingers_to_keys_data, dtype=int)
+        data = np.array(data, dtype=int)
+        data = np.concatenate(
+            [np.zeros((Song.START_BUFFER, *data.shape[1:]), dtype=np.int16), data],
+            axis=0,
         )
 
-    @staticmethod
-    def from_midi_string(name: str):  # finger data left empty
-        DIR = os.path.dirname(os.path.abspath(__file__))
-        midi = mido.MidiFile(os.path.join(DIR, f"songs/{name}/{name}.mid"))
+        fingers_to_keys_data = np.array(fingers_to_keys_data, dtype=int)
+        fingers_to_keys_data = np.concatenate(
+            [
+                np.zeros(
+                    (Song.START_BUFFER, *fingers_to_keys_data.shape[1:]), dtype=np.int16
+                )
+                - 1,
+                fingers_to_keys_data,
+            ],
+            axis=0,
+        )
 
-        return Song.from_midi(name=name, midi=midi)
+        return Song(name=name, data=data, fingers_to_keys_data=fingers_to_keys_data)
 
     @staticmethod
-    def from_midi(name: str, midi: mido.MidiFile):
+    def from_midi(name: str, midi: mido.MidiFile):  # finger data left empty
         notes = []
         active_notes = {}
         abs_time = 0.0
@@ -222,4 +219,4 @@ class Song:
         for note_index, start, end in notes:
             data[max(0, start) : max(0, end), note_index] = 1
 
-        return Song(name, data, fingers_to_keys_data)
+        return Song(name=name, data=data, fingers_to_keys_data=fingers_to_keys_data)
