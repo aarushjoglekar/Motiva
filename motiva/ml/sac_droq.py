@@ -1,88 +1,9 @@
-import torch
-import math
 from ml.replay_buffer import ReplayBuffer
+from ml.actor import Actor
+from ml.critic import BatchedCritic
+import torch
 import os
-
-
-def init_weights_xavier(module: torch.nn.Module):
-    if isinstance(module, torch.nn.Linear):
-        torch.nn.init.xavier_uniform_(module.weight)
-        torch.nn.init.zeros_(module.bias)
-
-
-class Actor(torch.nn.Module):
-    def __init__(
-        self,
-        hidden_layer_size: int,
-        num_hidden_layers: int,
-        num_observations: int,
-        num_actions: int,
-    ):
-        super().__init__()
-
-        layers = [torch.nn.Linear(num_observations, hidden_layer_size), torch.nn.GELU()]
-
-        for _ in range(num_hidden_layers):
-            layers.append(torch.nn.Linear(hidden_layer_size, hidden_layer_size))
-            layers.append(torch.nn.GELU())
-
-        layers.append(torch.nn.Linear(hidden_layer_size, num_actions * 2))
-
-        self.layers = torch.nn.Sequential(*layers)
-
-        self.apply(init_weights_xavier)
-
-    def forward(self, state: torch.Tensor):
-        return self.layers(state)
-
-
-class Critic(torch.nn.Module):
-    def __init__(
-        self,
-        hidden_layer_size: int,
-        num_hidden_layers: int,
-        num_observations: int,
-        num_actions: int,
-        dropout_probability: float,
-    ):
-        super().__init__()
-
-        self.input_layer = torch.nn.Sequential(
-            torch.nn.Linear(num_observations + num_actions, hidden_layer_size),
-            torch.nn.LayerNorm(hidden_layer_size),
-        )
-
-        self.hidden_layers = torch.nn.ModuleList()
-        for _ in range(num_hidden_layers):
-            self.hidden_layers.append(
-                torch.nn.Sequential(
-                    torch.nn.Linear(hidden_layer_size, hidden_layer_size),
-                    torch.nn.LayerNorm(hidden_layer_size),
-                )
-            )
-
-        self.output_layer = torch.nn.Linear(hidden_layer_size, 1)
-
-        self.dropout = torch.nn.Dropout(p=dropout_probability)
-        self.gelu = torch.nn.GELU()
-
-        self.apply(init_weights_xavier)
-
-    def forward(self, state: torch.Tensor, action: torch.Tensor, dropout: bool):
-        X = torch.cat([state, action], dim=-1)
-
-        X = self.gelu(self.apply_dropout(X=self.input_layer(X), dropout=dropout))
-
-        for hidden_layer in self.hidden_layers:
-            X = self.gelu(self.apply_dropout(X=hidden_layer(X), dropout=dropout))
-
-        return self.output_layer(X).squeeze(-1)
-
-    def apply_dropout(self, X: torch.Tensor, dropout: bool):
-        if dropout:
-            X = self.dropout(X)
-
-        return X
+import math
 
 
 class SAC_DROQ(torch.nn.Module):
@@ -124,27 +45,27 @@ class SAC_DROQ(torch.nn.Module):
         )
 
         self.num_critics = num_critics
-        self.critics = torch.nn.ModuleList()
-        self.critic_targets = torch.nn.ModuleList()
-        for _ in range(num_critics):
-            critic, target = SAC_DROQ.initialize_critic(
-                hidden_layer_size=critic_hidden_layer_size,
-                num_hidden_layers=critic_num_hidden_layers,
-                num_observations=num_observations,
-                num_actions=num_actions,
-                dropout_probability=critic_dropout_probability,
-            )
-            self.critics.append(critic)
-            self.critic_targets.append(target)
+        self.critics = BatchedCritic(
+            num_critics=num_critics,
+            hidden_layer_size=critic_hidden_layer_size,
+            num_hidden_layers=critic_num_hidden_layers,
+            num_observations=num_observations,
+            num_actions=num_actions,
+            dropout_probability=critic_dropout_probability,
+        )
+        self.target_critics = BatchedCritic(
+            num_critics=num_critics,
+            hidden_layer_size=critic_hidden_layer_size,
+            num_hidden_layers=critic_num_hidden_layers,
+            num_observations=num_observations,
+            num_actions=num_actions,
+            dropout_probability=critic_dropout_probability,
+        )
 
-        self.critic_params = [
-            param for critic in self.critics for param in critic.parameters()
-        ]
-        self.critic_target_params = [
-            target_param
-            for critic_target in self.critic_targets
-            for target_param in critic_target.parameters()
-        ]
+        self.target_critics.load_state_dict(self.critics.state_dict())
+
+        self.critic_params = list(self.critics.parameters())
+        self.critic_target_params = list(self.target_critics.parameters())
 
         self.critic_optimizer = torch.optim.Adam(self.critic_params, lr=critic_lr)
 
@@ -261,14 +182,8 @@ class SAC_DROQ(torch.nn.Module):
                         state=next_states, deterministic=False
                     )
                     next_q = torch.min(
-                        torch.stack(
-                            [
-                                critic.forward(
-                                    state=next_states, action=next_actions, dropout=True
-                                )
-                                for critic in self.critic_targets
-                            ],
-                            dim=0,
+                        self.target_critics.forward(
+                            state=next_states, action=next_actions, dropout=True
                         ),
                         dim=0,
                     ).values
@@ -277,20 +192,13 @@ class SAC_DROQ(torch.nn.Module):
                     )
 
                 self.critic_optimizer.zero_grad()
-                critic_losses = torch.stack(
-                    [
-                        (
-                            (
-                                critic.forward(
-                                    state=states, action=actions, dropout=True
-                                )
-                                - critic_target
-                            )
-                            ** 2
-                        ).mean()
-                        for critic in self.critics
-                    ]
-                )
+                critic_losses = (
+                    (
+                        self.critics.forward(state=states, action=actions, dropout=True)
+                        - critic_target
+                    )
+                    ** 2
+                ).mean(dim=1)
                 critic_loss = critic_losses.sum()
                 critic_loss.backward()
                 self.critic_optimizer.step()
@@ -306,18 +214,9 @@ class SAC_DROQ(torch.nn.Module):
 
             self.actor_optimizer.zero_grad()
             actor_loss = (
-                -torch.mean(
-                    torch.stack(
-                        [
-                            critic.forward(
-                                state=states, action=current_actions, dropout=False
-                            )
-                            for critic in self.critics
-                        ],
-                        dim=0,
-                    ),
-                    dim=0,
-                )
+                -self.critics.forward(
+                    state=states, action=current_actions, dropout=False
+                ).mean(dim=0)
                 + self.alpha * current_log_probs
             ).mean()
             actor_loss.backward()
@@ -360,31 +259,3 @@ class SAC_DROQ(torch.nn.Module):
         )
 
         print("Replay Buffer Saved!")
-
-    @staticmethod
-    def initialize_critic(
-        hidden_layer_size: int,
-        num_hidden_layers: int,
-        num_observations: int,
-        num_actions: int,
-        dropout_probability: float,
-    ):
-        critic = Critic(
-            hidden_layer_size=hidden_layer_size,
-            num_hidden_layers=num_hidden_layers,
-            num_observations=num_observations,
-            num_actions=num_actions,
-            dropout_probability=dropout_probability,
-        )
-
-        target = Critic(
-            hidden_layer_size=hidden_layer_size,
-            num_hidden_layers=num_hidden_layers,
-            num_observations=num_observations,
-            num_actions=num_actions,
-            dropout_probability=dropout_probability,
-        )
-
-        target.load_state_dict(critic.state_dict())
-
-        return critic, target
