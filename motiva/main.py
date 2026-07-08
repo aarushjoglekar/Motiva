@@ -14,13 +14,13 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star_v2"
+MODEL_NAME = "twinkle_twinkle_little_star"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 1000000
+NUM_STEPS = 2000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 

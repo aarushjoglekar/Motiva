@@ -33,6 +33,8 @@ class SAC_DROQ(torch.nn.Module):
         device: str,
     ):
         super().__init__()
+        
+        self.device = device
 
         self.actor = Actor(
             hidden_layer_size=actor_hidden_layer_size,
@@ -170,7 +172,7 @@ class SAC_DROQ(torch.nn.Module):
             and self.replay_buffer.length > self.warmup_samples
         ):
 
-            avg_critic_loss = 0
+            avg_critic_loss = torch.zeros((), device=self.device)
 
             for _ in range(self.updates_per_step):
                 states, actions, rewards, next_states = (
@@ -203,7 +205,7 @@ class SAC_DROQ(torch.nn.Module):
                 critic_loss.backward()
                 self.critic_optimizer.step()
 
-                avg_critic_loss += critic_losses.mean().item()
+                avg_critic_loss += critic_losses.mean().detach()
 
                 with torch.no_grad():
                     torch._foreach_lerp_(self.critic_target_params, self.critic_params, self.tau)  # type: ignore
@@ -233,7 +235,7 @@ class SAC_DROQ(torch.nn.Module):
 
             return (
                 actor_loss.item(),
-                avg_critic_loss / self.updates_per_step,
+                (avg_critic_loss / self.updates_per_step).item(),
                 current_log_probs.mean().item(),
                 self.alpha,
             )

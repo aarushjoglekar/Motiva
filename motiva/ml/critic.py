@@ -15,22 +15,21 @@ class BatchedLinear(torch.nn.Module):
             torch.nn.init.xavier_uniform_(w)
         torch.nn.init.zeros_(self.bias)
 
-    def forward(self, x: torch.Tensor):
-        return x @ self.weight.transpose(-2, -1) + self.bias.unsqueeze(1)
+    def forward(self, X: torch.Tensor):
+        return X @ self.weight.transpose(-2, -1) + self.bias.unsqueeze(1)
 
 
 class BatchedLayerNorm(torch.nn.Module):
     def __init__(self, num_critics: int, size: int):
         super().__init__()
 
+        self.size = size
         self.weight = torch.nn.Parameter(torch.ones(num_critics, size))
         self.bias = torch.nn.Parameter(torch.zeros(num_critics, size))
 
-    def forward(self, x: torch.Tensor):
-        mean = x.mean(dim=-1, keepdim=True)
-        var = x.var(dim=-1, keepdim=True, unbiased=False)
-        x = (x - mean) / torch.sqrt(var + 1e-5)
-        return x * self.weight.unsqueeze(1) + self.bias.unsqueeze(1)
+    def forward(self, X: torch.Tensor):
+        X = torch.nn.functional.layer_norm(X, (self.size, ))
+        return X * self.weight.unsqueeze(1) + self.bias.unsqueeze(1)
 
 
 class BatchedCritic(torch.nn.Module):
