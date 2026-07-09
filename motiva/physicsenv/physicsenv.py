@@ -190,6 +190,7 @@ class PhysicsEnv:
     ):
         DIR = os.path.dirname(os.path.abspath(__file__))
         model = mujoco.MjModel.from_xml_path(os.path.join(DIR, "models/world.xml"))
+        model.opt.timestep = 0.005
         data = mujoco.MjData(model)
 
         # apply gravity compensation to all hand bodies

@@ -43,7 +43,7 @@ class SAC_DROQ(torch.nn.Module):
             num_actions=num_actions,
         )
         self.actor_optimizer = torch.optim.Adam(
-            params=self.actor.parameters(), lr=actor_lr
+            params=self.actor.parameters(), lr=actor_lr, fused=(device == "cuda")
         )
 
         self.num_critics = num_critics
@@ -69,12 +69,11 @@ class SAC_DROQ(torch.nn.Module):
         self.critic_params = list(self.critics.parameters())
         self.critic_target_params = list(self.target_critics.parameters())
 
-        self.critic_optimizer = torch.optim.Adam(self.critic_params, lr=critic_lr)
+        self.critic_optimizer = torch.optim.Adam(self.critic_params, lr=critic_lr, fused=(device == "cuda"))
 
         self.target_entropy = target_entropy
         self.log_alpha = torch.nn.Parameter(torch.zeros(1))
-        self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=log_alpha_lr)
-        self.alpha = self.log_alpha.exp().item()
+        self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=log_alpha_lr, fused=(device == "cuda"))
 
         self.min_action_log_std = min_action_log_std
         self.max_action_log_std = max_action_log_std
@@ -113,8 +112,6 @@ class SAC_DROQ(torch.nn.Module):
             optimizer_to_device(optimizer=self.actor_optimizer, device=device)
             optimizer_to_device(optimizer=self.critic_optimizer, device=device)
             optimizer_to_device(optimizer=self.log_alpha_optimizer, device=device)
-
-            self.alpha = self.log_alpha.exp().item()
         except FileNotFoundError:
             print("Model not loaded: instantiating new model")
 
@@ -190,7 +187,7 @@ class SAC_DROQ(torch.nn.Module):
                         dim=0,
                     ).values
                     critic_target = rewards + self.discount_factor * (
-                        next_q - self.alpha * next_log_probs
+                        next_q - self.log_alpha.exp() * next_log_probs
                     )
 
                 self.critic_optimizer.zero_grad()
@@ -219,7 +216,7 @@ class SAC_DROQ(torch.nn.Module):
                 -self.critics.forward(
                     state=states, action=current_actions, dropout=False
                 ).mean(dim=0)
-                + self.alpha * current_log_probs
+                + self.log_alpha.exp() * current_log_probs
             ).mean()
             actor_loss.backward()
             self.actor_optimizer.step()
@@ -231,13 +228,12 @@ class SAC_DROQ(torch.nn.Module):
             ).mean()
             log_alpha_loss.backward()
             self.log_alpha_optimizer.step()
-            self.alpha = self.log_alpha.exp().item()
 
             return (
-                actor_loss.item(),
-                (avg_critic_loss / self.updates_per_step).item(),
-                current_log_probs.mean().item(),
-                self.alpha,
+                actor_loss.detach(),
+                (avg_critic_loss / self.updates_per_step).detach(),
+                current_log_probs.mean().detach(),
+                self.log_alpha.exp().squeeze(0).detach(),
             )
 
         return None

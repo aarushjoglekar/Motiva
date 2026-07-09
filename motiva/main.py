@@ -99,11 +99,11 @@ def run_training(
         state = torch.from_numpy(state).float().to(device)
 
         warmup_episode = False
-        sum_reward = 0.0
-        sum_actor_loss = 0.0
-        sum_critic_loss = 0.0
-        sum_log_prob = 0.0
-        sum_alpha = 0.0
+        sum_reward = 0
+        sum_actor_loss = torch.zeros((), device=device)
+        sum_critic_loss = torch.zeros((), device=device)
+        sum_log_prob = torch.zeros((), device=device)
+        sum_alpha = torch.zeros((), device=device)
         steps = 0
 
         episode_update_count = 0
@@ -158,7 +158,7 @@ def run_training(
                 f1_scores.append(f1)
             stats = f"Validation Episode - F1: {f1}, Precision: {precision}, Recall: {recall}"
         else:
-            stats = f"Actor Loss: {sum_actor_loss / steps} || Critic Loss: {sum_critic_loss / steps} || Log Prob: {sum_log_prob / steps} || Alpha: {sum_alpha / steps} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
+            stats = f"Actor Loss: {(sum_actor_loss / steps).item()} || Critic Loss: {(sum_critic_loss / steps).item()} || Log Prob: {(sum_log_prob / steps).item()} || Alpha: {(sum_alpha / steps).item()} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
 
         print(
             f"Episode: {episode} || Reward: {sum_reward} || {stats} || Total Steps: {num_steps}"
