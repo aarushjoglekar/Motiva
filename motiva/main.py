@@ -8,19 +8,20 @@ import os
 import torch
 import numpy as np
 import matplotlib
+import logging
 
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star"
+MODEL_NAME = "somewhere_over_the_rainbow"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 2000000
+NUM_STEPS = 4000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 
@@ -28,11 +29,14 @@ SAVE_TO_MIDI_VALID = False
 SAVE_TO_MIDI_TEST = False
 
 # SONG SETTINGS
-SONG_CHOICE = Song.TWINKLE_TWINKLE_LITTLE_STAR
+SONG_CHOICE = Song.SOMEWHERE_OVER_THE_RAINBOW
 SONG = Song.from_txt(name=SONG_CHOICE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
+
+torch.set_float32_matmul_precision("high")
+logging.getLogger("torch._inductor.utils").setLevel(logging.ERROR)
 
 
 def run_training(
@@ -246,6 +250,7 @@ with Environment(SONG, should_render=(not TRAINING), seed=SEED) as env:
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"
+    print(f"Running on device: {device}")
 
     model = SAC_DROQ(
         model_path=model_path,

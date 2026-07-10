@@ -33,7 +33,7 @@ class SAC_DROQ(torch.nn.Module):
         device: str,
     ):
         super().__init__()
-        
+
         self.device = device
 
         self.actor = Actor(
@@ -69,11 +69,15 @@ class SAC_DROQ(torch.nn.Module):
         self.critic_params = list(self.critics.parameters())
         self.critic_target_params = list(self.target_critics.parameters())
 
-        self.critic_optimizer = torch.optim.Adam(self.critic_params, lr=critic_lr, fused=(device == "cuda"))
+        self.critic_optimizer = torch.optim.Adam(
+            self.critic_params, lr=critic_lr, fused=(device == "cuda")
+        )
 
         self.target_entropy = target_entropy
         self.log_alpha = torch.nn.Parameter(torch.zeros(1))
-        self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=log_alpha_lr, fused=(device == "cuda"))
+        self.log_alpha_optimizer = torch.optim.Adam(
+            [self.log_alpha], lr=log_alpha_lr, fused=(device == "cuda")
+        )
 
         self.min_action_log_std = min_action_log_std
         self.max_action_log_std = max_action_log_std
@@ -125,6 +129,19 @@ class SAC_DROQ(torch.nn.Module):
         except FileNotFoundError:
             print("Replay buffer not loaded")
 
+        self.calculate_critic_loss = torch.compile(
+            self.calculate_critic_loss,
+            dynamic=False,
+            fullgraph=True,
+            mode="reduce-overhead",
+        )
+        self.calculate_actor_loss = torch.compile(
+            self.calculate_actor_loss,
+            dynamic=False,
+            fullgraph=True,
+            mode="reduce-overhead",
+        )
+
     def select_action(self, state: torch.Tensor, deterministic: bool):
         y = self.actor(state)
 
@@ -137,10 +154,11 @@ class SAC_DROQ(torch.nn.Module):
             input=log_stds, min=self.min_action_log_std, max=self.max_action_log_std
         )
 
-        dist = torch.distributions.Normal(means, clamped_log_stds.exp())
+        std = clamped_log_stds.exp()
+        eps = torch.randn_like(means)
 
-        action = dist.rsample()
-        log_prob = dist.log_prob(action)
+        action = means + std * eps
+        log_prob = -0.5 * eps.pow(2) - clamped_log_stds - 0.5 * math.log(2 * math.pi)
 
         scaled_action = torch.tanh(action)
         scaled_log_prob = (
@@ -157,6 +175,8 @@ class SAC_DROQ(torch.nn.Module):
         action: torch.Tensor,
         reward: float,
     ):
+        torch.compiler.cudagraph_mark_step_begin()
+
         self.replay_buffer.add_sample(
             state=state.detach(),
             next_state=next_state.detach(),
@@ -176,56 +196,36 @@ class SAC_DROQ(torch.nn.Module):
                     self.replay_buffer.sample_random()
                 )
 
-                with torch.no_grad():
-                    next_actions, next_log_probs = self.select_action(
-                        state=next_states, deterministic=False
-                    )
-                    next_q = torch.min(
-                        self.target_critics.forward(
-                            state=next_states, action=next_actions, dropout=True
-                        ),
-                        dim=0,
-                    ).values
-                    critic_target = rewards + self.discount_factor * (
-                        next_q - self.log_alpha.exp() * next_log_probs
-                    )
+                critic_loss, critic_loss_mean = self.calculate_critic_loss(
+                    states=states,
+                    next_states=next_states,
+                    actions=actions,
+                    rewards=rewards,
+                )
 
                 self.critic_optimizer.zero_grad()
-                critic_losses = (
-                    (
-                        self.critics.forward(state=states, action=actions, dropout=True)
-                        - critic_target
-                    )
-                    ** 2
-                ).mean(dim=1)
-                critic_loss = critic_losses.sum()
                 critic_loss.backward()
                 self.critic_optimizer.step()
 
-                avg_critic_loss += critic_losses.mean().detach()
+                avg_critic_loss += critic_loss_mean
 
                 with torch.no_grad():
                     torch._foreach_lerp_(self.critic_target_params, self.critic_params, self.tau)  # type: ignore
 
-            current_actions, current_log_probs = self.select_action(
-                state=states, deterministic=False
+            actor_loss, current_log_probs = self.calculate_actor_loss(
+                states=states
             )
 
             self.actor_optimizer.zero_grad()
-            actor_loss = (
-                -self.critics.forward(
-                    state=states, action=current_actions, dropout=False
-                ).mean(dim=0)
-                + self.log_alpha.exp() * current_log_probs
-            ).mean()
             actor_loss.backward()
             self.actor_optimizer.step()
 
-            self.log_alpha_optimizer.zero_grad()
             log_alpha_loss = -(
                 self.log_alpha.exp()
                 * (current_log_probs + self.target_entropy).detach()
             ).mean()
+
+            self.log_alpha_optimizer.zero_grad()
             log_alpha_loss.backward()
             self.log_alpha_optimizer.step()
 
@@ -237,6 +237,51 @@ class SAC_DROQ(torch.nn.Module):
             )
 
         return None
+
+    def calculate_critic_loss(
+        self,
+        states: torch.Tensor,
+        next_states: torch.Tensor,
+        actions: torch.Tensor,
+        rewards: torch.Tensor,
+    ):
+        with torch.no_grad():
+            next_actions, next_log_probs = self.select_action(
+                state=next_states, deterministic=False
+            )
+            next_q = torch.min(
+                self.target_critics.forward(
+                    state=next_states, action=next_actions, dropout=True
+                ),
+                dim=0,
+            ).values
+            critic_target = rewards + self.discount_factor * (
+                next_q - self.log_alpha.exp() * next_log_probs
+            )
+
+        critic_losses = (
+            (
+                self.critics.forward(state=states, action=actions, dropout=True)
+                - critic_target
+            )
+            ** 2
+        ).mean(dim=1)
+
+        return critic_losses.sum(), critic_losses.mean().detach()
+
+    def calculate_actor_loss(self, states: torch.Tensor):
+        current_actions, current_log_probs = self.select_action(
+            state=states, deterministic=False
+        )
+
+        actor_loss = (
+            -self.critics.forward(
+                state=states, action=current_actions, dropout=False
+            ).mean(dim=0)
+            + self.log_alpha.exp() * current_log_probs
+        ).mean()
+
+        return actor_loss, current_log_probs
 
     def save(self):
         torch.save(

@@ -21,6 +21,15 @@ class ReplayBuffer:
         self.rewards = torch.zeros(self.max_size, device=device)
         self.next_states = torch.zeros(self.max_size, num_observations, device=device)
 
+        self.states_allocated = torch.zeros(
+            sample_size, num_observations, device=device
+        )
+        self.actions_allocated = torch.zeros(sample_size, num_actions, device=device)
+        self.rewards_allocated = torch.zeros(sample_size, device=device)
+        self.next_states_allocated = torch.zeros(
+            sample_size, num_observations, device=device
+        )
+
         self.device = device
 
     def load(self, data):
@@ -63,11 +72,16 @@ class ReplayBuffer:
     def sample_random(self):
         indices = torch.randint(0, self.length, (self.sample_size,), device=self.device)
 
+        torch.index_select(self.states, 0, indices, out=self.states_allocated)
+        torch.index_select(self.actions, 0, indices, out=self.actions_allocated)
+        torch.index_select(self.rewards, 0, indices, out=self.rewards_allocated)
+        torch.index_select(self.next_states, 0, indices, out=self.next_states_allocated)
+
         return (
-            self.states[indices],
-            self.actions[indices],
-            self.rewards[indices],
-            self.next_states[indices],
+            self.states_allocated,
+            self.actions_allocated,
+            self.rewards_allocated,
+            self.next_states_allocated,
         )
 
     def size(self):
