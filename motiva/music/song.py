@@ -15,7 +15,7 @@ class Song:
 
     TWINKLE_TWINKLE_LITTLE_STAR = "twinkle_twinkle_little_star"
     SOMEWHERE_OVER_THE_RAINBOW = "somewhere_over_the_rainbow"
-    CHOPIN_WALTZ_OP69_NO1 = "chopin_waltz_op69_no1"
+    ANOTHER_LOVE = "another_love"
 
     def __init__(self, name: str, data: np.ndarray, fingers_to_keys_data: np.ndarray):
         self.name = name
@@ -123,13 +123,7 @@ class Song:
             data = []
             fingers_to_keys_data = []
 
-            first_line = True
             for line in file:
-
-                if first_line:
-                    first_line = False
-                    continue
-
                 line = line.strip().split("\t")
 
                 start_time = line[1]

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "somewhere_over_the_rainbow"
+MODEL_NAME = "another_love"
 SEED = 42
 DISABLE_CUDA = False
 
@@ -29,7 +29,7 @@ SAVE_TO_MIDI_VALID = False
 SAVE_TO_MIDI_TEST = False
 
 # SONG SETTINGS
-SONG_CHOICE = Song.SOMEWHERE_OVER_THE_RAINBOW
+SONG_CHOICE = Song.ANOTHER_LOVE
 SONG = Song.from_txt(name=SONG_CHOICE)
 
 torch.manual_seed(SEED)
