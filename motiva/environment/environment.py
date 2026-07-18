@@ -2,15 +2,17 @@ from physicsenv.physicsenv import PhysicsEnv
 from music.song import Song
 from music.pianoaudio import PianoAudio
 import time
+import random
 import numpy as np
 import helpers.helpers as helpers
 
 
 class Environment:
-    def __init__(self, song: Song, should_render: bool, seed: int):
+    def __init__(self, songs: list[Song], should_render: bool, seed: int):
         self.physicsenv = PhysicsEnv(seed=seed)
+        self.rng = random.Random(seed)
 
-        self.song = song
+        self.songs = songs
         self.should_render = should_render
         self.piano_audio = None
 
@@ -18,8 +20,10 @@ class Environment:
             self.physicsenv.render()
 
     def reset(
-        self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str
+        self, song: Song | None, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str
     ):
+        self.current_song = song if song is not None else self.rng.choice(self.songs)
+        
         self.piano_audio = PianoAudio(
             play_audio=play_audio,
             record_midi=record_midi,
@@ -32,7 +36,7 @@ class Environment:
         self.start_time = time.perf_counter_ns()
 
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.song.sample_at(0)[0]
+        song_obs = self.current_song.sample_at(0)[0]
 
         return self.get_obs(env_obs, song_obs)
 
@@ -46,7 +50,7 @@ class Environment:
 
         env_obs = self.physicsenv.step(action)
 
-        song_obs, fingers_to_keys, truncated = self.song.sample_at(episode_time)
+        song_obs, fingers_to_keys, truncated = self.current_song.sample_at(episode_time)
 
         if self.should_render:
             self.physicsenv.render()
@@ -150,7 +154,7 @@ class Environment:
 
     def num_observations(self):
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.song.sample_at(0)[0]
+        song_obs = self.songs[0].sample_at(0)[0]
         return self.get_obs(env_obs, song_obs).shape[0]
 
     def render(self):

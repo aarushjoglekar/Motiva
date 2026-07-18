@@ -5,6 +5,7 @@ from ml.config import SAC_DROQ_DEFAULT_CONFIG
 from datetime import datetime
 import time
 import os
+import json
 import torch
 import numpy as np
 import matplotlib
@@ -24,13 +25,11 @@ TRAINING = True
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
+TRAIN_SONGS = [Song.from_txt(Song.ANOTHER_LOVE)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-
-# SONG SETTINGS
-SONG_CHOICE = Song.ANOTHER_LOVE
-SONG = Song.from_txt(name=SONG_CHOICE)
+TEST_SONG = Song.from_txt(Song.ANOTHER_LOVE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -46,28 +45,41 @@ def run_training(
     device: str,
 ):
     os.makedirs(model_path, exist_ok=True)
+
     num_steps = 0
     train_episode = 0
-    f1_score_steps = []
-    f1_scores = []
-
     total_train_time = 0
     total_loop_time = 0
+    eval_history = dict()
 
-    train_data_path = os.path.join(model_path, "train_data.txt")
-    if os.path.exists(train_data_path):
-        with open(train_data_path) as f:
-            header = f.readline()
+    song_keys = [song.name for song in TRAIN_SONGS]
 
-        train_episode = int(header.split("train_episodes=")[1].split(" ")[0])
-        num_steps = int(header.split("num_steps=")[1].split(" ")[0])
-        total_train_time = float(header.split("total_train_time=")[1].split(" ")[0])
-        total_loop_time = float(header.split("total_loop_time=")[1].strip())
+    train_state_path = os.path.join(model_path, "train_state.json")
+    if os.path.exists(train_state_path):
+        with open(train_state_path) as f:
+            train_state = json.load(f)
 
-        data = np.loadtxt(train_data_path)
-        f1_score_steps = data[:, 0].tolist()
-        f1_scores = data[:, 1].tolist()
-        print(f"Resumed with {len(f1_score_steps)} existing F1 scores")
+        if set(train_state["song_keys"]) != set(song_keys):
+            raise ValueError("Song set changed since this model started training!")
+
+        song_keys = train_state["song_keys"]
+        train_episode = train_state["train_episodes"]
+        num_steps = train_state["num_steps"]
+        total_train_time = train_state["total_train_time"]
+        total_loop_time = train_state["total_loop_time"]
+        eval_history = train_state["eval_history"]
+        
+        print(
+            f"Resumed with {len(list(eval_history.values())[0]['steps'])} existing validation checkpoints."
+        )
+    else:
+        for song in TRAIN_SONGS:
+            eval_history[song.name] = {
+                "steps": [],
+                "f1": [],
+                "precision": [],
+                "recall": [],
+            }
 
     next_validation = num_steps + VALIDATION_INTERVAL
     total_target_steps = num_steps + NUM_STEPS
@@ -87,8 +99,7 @@ def run_training(
                 model=model,
                 env=env,
                 model_path=model_path,
-                f1_score_steps=f1_score_steps,
-                f1_scores=f1_scores,
+                eval_history=eval_history,
                 num_steps=num_steps,
                 device=device,
             )
@@ -115,8 +126,7 @@ def run_training(
         model=model,
         env=env,
         model_path=model_path,
-        f1_score_steps=f1_score_steps,
-        f1_scores=f1_scores,
+        eval_history=eval_history,
         num_steps=num_steps,
         device=device,
     )
@@ -125,32 +135,44 @@ def run_training(
     loop_checkpoint_time = time.perf_counter() - start_time
     total_train_time += train_checkpoint_time
     total_loop_time += loop_checkpoint_time
-    print(f"Time Statistics:\n\
-            \tTrain Checkpoint Time: {train_checkpoint_time / 3600} hrs\n\
-            \tLoop Checkpoint Time: {loop_checkpoint_time / 3600} hrs\n\
-            \tTotal Train Time: {total_train_time / 3600} hrs\n\
-            \tTotal Loop Time: {total_loop_time / 3600} hrs")
+    print(f"Time Statistics:\n  Train Checkpoint Time: {train_checkpoint_time / 3600} hrs\n  Loop Checkpoint Time: {loop_checkpoint_time / 3600} hrs\n  Total Train Time: {total_train_time / 3600} hrs\n  Total Loop Time: {total_loop_time / 3600} hrs")
 
-    np.savetxt(
-        train_data_path,
-        np.column_stack([f1_score_steps, f1_scores]),
-        header=f"train_episodes={train_episode} || num_steps={num_steps} || total_train_time={total_train_time} || total_loop_time={total_loop_time}",
-        fmt="%.6f",
-    )
+    train_state = {
+        "song_keys": song_keys,
+        "train_episodes": train_episode,
+        "num_steps": num_steps,
+        "total_train_time": total_train_time,
+        "total_loop_time": total_loop_time,
+        "eval_history": eval_history,
+    }
+    with open(train_state_path, "w") as f:
+        json.dump(train_state, f, indent=2)
 
-    plt.plot(f1_score_steps, f1_scores)
+    plt.figure()
+    for song_key, history in eval_history.items():
+        plt.plot(history["steps"], history["f1"], label=song_key)
     plt.xlabel("Steps")
     plt.ylabel("F1 Score")
     plt.title("F1 Score over Training")
-    plt.savefig(os.path.join(model_path, "f1-history.png"))
+    plt.legend()
+    plt.savefig(os.path.join(model_path, "f1_history.png"))
+    plt.close()
 
     model.save()
 
 
-def run_train_episode(model: SAC_DROQ, env: Environment, max_steps: int, num_steps: int, episode: int, device: str):
+def run_train_episode(
+    model: SAC_DROQ,
+    env: Environment,
+    max_steps: int,
+    num_steps: int,
+    episode: int,
+    device: str,
+):
     model.train()
 
     state = env.reset(
+        song=None,
         play_audio=False,
         record_midi=False,
         save_midi=False,
@@ -198,13 +220,13 @@ def run_train_episode(model: SAC_DROQ, env: Environment, max_steps: int, num_ste
 
     episode_time = time.perf_counter() - episode_start_time
 
-    stats = f"Episode: {episode} || Reward: {sum_reward} || "
+    stats = f"Episode: {episode} || Reward: {round(sum_reward, 2)} || "
     if warmup_episode:
         stats += "Warmup Episode: No Update Statistics"
     else:
-        stats += f"Actor Loss: {(sum_actor_loss / steps).item()} || Critic Loss: {(sum_critic_loss / steps).item()} || Log Prob: {(sum_log_prob / steps).item()} || Alpha: {(sum_alpha / steps).item()} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
+        stats += f"Actor Loss: {round((sum_actor_loss / steps).item(), 2)} || Critic Loss: {round((sum_critic_loss / steps).item(), 2)} || Log Prob: {round((sum_log_prob / steps).item(), 2)} || Alpha: {round((sum_alpha / steps).item(), 2)} || Time/Update: {(round(1000 * episode_time / episode_update_count, 2))}ms"
     num_steps += steps
-    stats += f" || Total Steps: {num_steps}"
+    stats += f" || Total Steps: {num_steps} || Song: {env.current_song.name}"
 
     return stats, num_steps
 
@@ -213,51 +235,55 @@ def run_validation_episode(
     model: SAC_DROQ,
     env: Environment,
     model_path: str,
-    f1_score_steps: list[int],
-    f1_scores: list[float],
+    eval_history: dict,
     num_steps: int,
     device: str,
 ):
     model.eval()
+    stats = "Validation Episode:"
 
-    validation_midi_file = os.path.join(
-        model_path,
-        f"valid-{num_steps}.mid",
-    )
-    state = env.reset(
-        play_audio=False,
-        record_midi=True,
-        save_midi=SAVE_TO_MIDI_VALID,
-        midi_file=validation_midi_file,
-    )
-    state = torch.from_numpy(state).float().to(device)
-
-    sum_reward = 0
-
-    while True:
-        action, _ = model.select_action(state=state, deterministic=True)
-        next_obs, reward, truncated = env.step(action=action.detach().cpu().numpy())
-        next_state = torch.from_numpy(next_obs).float().to(device)
-        sum_reward += reward
-
-        state = next_state
-
-        if truncated:
-            break
-
-    f1 = None
-    precision = None
-    recall = None
-    midi = env.save_piano_audio()
-    if midi is not None:
-        precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
-            ground_truth=SONG
+    for song in TRAIN_SONGS:
+        validation_midi_file = os.path.join(
+            model_path,
+            f"valid_{song.name}_{num_steps}.mid",
         )
+        state = env.reset(
+            song=song,
+            play_audio=False,
+            record_midi=True,
+            save_midi=SAVE_TO_MIDI_VALID,
+            midi_file=validation_midi_file,
+        )
+        state = torch.from_numpy(state).float().to(device)
 
-        f1_score_steps.append(num_steps)
-        f1_scores.append(f1)
+        sum_reward = 0
 
-    stats = f"Validation Episode - Reward: {sum_reward} F1: {f1}, Precision: {precision}, Recall: {recall}"
+        while True:
+            action, _ = model.select_action(state=state, deterministic=True)
+            next_obs, reward, truncated = env.step(action=action.detach().cpu().numpy())
+            next_state = torch.from_numpy(next_obs).float().to(device)
+            sum_reward += reward
+
+            state = next_state
+
+            if truncated:
+                break
+
+        f1 = None
+        precision = None
+        recall = None
+        midi = env.save_piano_audio()
+        if midi is not None:
+            precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
+                ground_truth=song
+            )
+
+            eval_history[song.name]["steps"].append(num_steps)
+            eval_history[song.name]["f1"].append(f1)
+            eval_history[song.name]["precision"].append(precision)
+            eval_history[song.name]["recall"].append(recall)
+
+        stats += f"\n  Song: {song.name}, Reward: {round(sum_reward, 2)}, F1: {round(f1, 2) if f1 is not None else None}, Precision: {round(precision, 2) if precision is not None else None}, Recall: {round(recall, 2) if recall is not None else None}"
 
     return stats
 
@@ -276,6 +302,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     model.eval()
 
     state = env.reset(
+        song=TEST_SONG,
         play_audio=True,
         record_midi=True,
         save_midi=SAVE_TO_MIDI_TEST,
@@ -309,14 +336,14 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     midi = env.save_piano_audio()
     if midi is not None:
         precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
-            ground_truth=SONG
+            ground_truth=TEST_SONG
         )
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
 
     print(f"Test Episode || Total Reward: {total_reward}{additional}")
 
 
-with Environment(SONG, should_render=(not TRAINING), seed=SEED) as env:
+with Environment(songs=TRAIN_SONGS, should_render=(not TRAINING), seed=SEED) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
