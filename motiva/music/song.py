@@ -10,17 +10,14 @@ class Song:
     START_BUFFER = 10
 
     NUM_PIANO_NOTES = 88
-    NUM_ACTIVE_FINGERS = 10
-    NUM_FEATURES = NUM_PIANO_NOTES + NUM_ACTIVE_FINGERS
 
     TWINKLE_TWINKLE_LITTLE_STAR = "twinkle_twinkle_little_star"
     SOMEWHERE_OVER_THE_RAINBOW = "somewhere_over_the_rainbow"
     ANOTHER_LOVE = "another_love"
 
-    def __init__(self, name: str, data: np.ndarray, fingers_to_keys_data: np.ndarray):
+    def __init__(self, name: str, data: np.ndarray):
         self.name = name
         self.data = data
-        self.fingers_to_keys_data = fingers_to_keys_data
         self.length = len(self.data)
 
     def sample_at(self, time: float):
@@ -35,9 +32,7 @@ class Song:
                 self.data[index:], ((0, end - self.length), (0, 0)), mode="constant"
             )
 
-        fingers_to_keys_sample = self.fingers_to_keys_data[index]
-
-        return samples.ravel(), fingers_to_keys_sample, truncated
+        return samples.ravel(), truncated
 
     def total_time(self):
         return self.length / Song.RESOLUTION
@@ -121,7 +116,6 @@ class Song:
         DIR = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(DIR, f"songs/{name}/{name}.txt")) as file:
             data = []
-            fingers_to_keys_data = []
 
             for line in file:
                 line = line.strip().split("\t")
@@ -137,24 +131,12 @@ class Song:
                 octave = int(raw_note[-1])
                 active_note = 12 * (octave - 1) + note_value + 3
 
-                raw_finger = line[7]
-
-                if "_" in raw_finger:
-                    raw_finger = raw_finger[2]
-
-                active_finger = constants.FINGER[int(raw_finger)]
-
                 diff = end_time_index - len(data)
                 if diff > 0:
-                    data += [np.zeros(Song.NUM_FEATURES) for _ in range(diff)]
-                    fingers_to_keys_data += [
-                        (np.zeros(Song.NUM_ACTIVE_FINGERS) - 1) for _ in range(diff)
-                    ]
+                    data += [np.zeros(Song.NUM_PIANO_NOTES) for _ in range(diff)]
 
                 for index in range(start_time_index, end_time_index - 1):
                     data[index][active_note] = 1
-                    data[index][active_finger + Song.NUM_PIANO_NOTES] = 1
-                    fingers_to_keys_data[index][active_finger] = active_note
 
         data = np.array(data, dtype=int)
         data = np.concatenate(
@@ -162,22 +144,16 @@ class Song:
             axis=0,
         )
 
-        fingers_to_keys_data = np.array(fingers_to_keys_data, dtype=int)
-        fingers_to_keys_data = np.concatenate(
-            [
-                np.zeros(
-                    (Song.START_BUFFER, *fingers_to_keys_data.shape[1:]), dtype=np.int16
-                )
-                - 1,
-                fingers_to_keys_data,
-            ],
-            axis=0,
-        )
-
-        return Song(name=name, data=data, fingers_to_keys_data=fingers_to_keys_data)
+        return Song(name=name, data=data)
+    
+    @staticmethod
+    def from_midi_file(name: str):
+        DIR = os.path.dirname(os.path.abspath(__file__))
+        midi = mido.MidiFile(os.path.join(DIR, f"songs/{name}/{name}.mid"))
+        return Song.from_midi(name, midi)
 
     @staticmethod
-    def from_midi(name: str, midi: mido.MidiFile):  # finger data left empty
+    def from_midi(name: str, midi: mido.MidiFile):
         notes = []
         active_notes = {}
         abs_time = 0.0
@@ -205,12 +181,9 @@ class Song:
                     )
 
         length = max((end for _, _, end in notes), default=0)
-        data = np.zeros((length, Song.NUM_FEATURES), dtype=int)
-        fingers_to_keys_data = (
-            np.zeros((length, Song.NUM_ACTIVE_FINGERS), dtype=int) - 1
-        )
+        data = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=int)
 
         for note_index, start, end in notes:
             data[max(0, start) : max(0, end), note_index] = 1
 
-        return Song(name=name, data=data, fingers_to_keys_data=fingers_to_keys_data)
+        return Song(name=name, data=data)

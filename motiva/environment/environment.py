@@ -3,6 +3,7 @@ from music.song import Song
 from music.pianoaudio import PianoAudio
 import time
 import random
+from scipy import optimize
 import numpy as np
 import helpers.helpers as helpers
 
@@ -20,10 +21,15 @@ class Environment:
             self.physicsenv.render()
 
     def reset(
-        self, song: Song | None, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str
+        self,
+        song: Song | None,
+        play_audio: bool,
+        record_midi: bool,
+        save_midi: bool,
+        midi_file: str,
     ):
         self.current_song = song if song is not None else self.rng.choice(self.songs)
-        
+
         self.piano_audio = PianoAudio(
             play_audio=play_audio,
             record_midi=record_midi,
@@ -50,7 +56,7 @@ class Environment:
 
         env_obs = self.physicsenv.step(action)
 
-        song_obs, fingers_to_keys, truncated = self.current_song.sample_at(episode_time)
+        song_obs, truncated = self.current_song.sample_at(episode_time)
 
         if self.should_render:
             self.physicsenv.render()
@@ -65,10 +71,8 @@ class Environment:
         return (
             self.get_obs(env_obs, song_obs),
             self.get_reward(
-                env_obs[0],
-                song_obs[: Song.NUM_PIANO_NOTES],
-                song_obs[Song.NUM_PIANO_NOTES : Song.NUM_FEATURES],
-                fingers_to_keys,
+                piano_actual_state=env_obs[0],
+                piano_goal_state=song_obs[: Song.NUM_PIANO_NOTES],
             ),
             truncated,
         )
@@ -80,8 +84,6 @@ class Environment:
         self,
         piano_actual_state: np.ndarray,
         piano_goal_state: np.ndarray,
-        active_fingers: np.ndarray,
-        active_keys: np.ndarray,
     ):
         # key press reward
         key_should_be_pressed = np.where(piano_goal_state == 1)[0]
@@ -106,26 +108,29 @@ class Environment:
 
         key_press_reward = accurate_key_presses + no_false_positive_reward
 
-        # finger close to key reward
-        active_finger_site_ids = self.physicsenv.finger_site_ids[
-            np.where(active_fingers == 1)
-        ]
-        fingertip_positions = self.physicsenv.data.site_xpos[active_finger_site_ids]
-        finger_dist_reward = 0
-
-        key_site_ids = self.physicsenv.piano_site_ids[
-            active_keys[active_keys >= 0]
-        ]  # active keys is in order of active fingers
-        active_keys_positions = self.physicsenv.data.site_xpos[key_site_ids]
-
-        dist = np.linalg.norm(fingertip_positions - active_keys_positions, axis=-1)
-        finger_dist_reward = (
-            0
-            if len(active_keys_positions) == 0
-            else helpers.proximity_reward(
-                dist, lower=0, upper=0.01, margin=0.1, value_at_margin=0.1
+        # finger close to key reward (RP1M)
+        if len(key_should_be_pressed) == 0:
+            finger_dist_reward = 1
+        else:
+            fingertip_positions = self.physicsenv.data.site_xpos[
+                self.physicsenv.finger_site_ids
+            ]
+            active_key_positions = self.physicsenv.data.site_xpos[
+                self.physicsenv.piano_site_ids[key_should_be_pressed]
+            ]
+            distances = np.linalg.norm(
+                fingertip_positions[:, None, :] - active_key_positions[None, :, :],
+                axis=-1,
+            )
+            row_indices, col_indices = optimize.linear_sum_assignment(distances)
+            optimized_distances = distances[row_indices, col_indices]
+            finger_dist_reward = helpers.proximity_reward(
+                optimized_distances,
+                lower=0,
+                upper=0.01,
+                margin=0.1,
+                value_at_margin=0.1,
             ).mean()
-        )
 
         # energy efficiency penalty
         joint_torques = self.physicsenv.data.qfrc_actuator[
@@ -133,7 +138,7 @@ class Environment:
         ]
         joint_velocities = self.physicsenv.data.qvel[self.physicsenv.hand_joint_ids]
         energy_penalty = np.dot(np.abs(joint_torques), np.abs(joint_velocities))
-        
+
         # no forearm collision reward
         colliding = False
         rh = self.physicsenv.rh_forearm_geom_ids
@@ -142,12 +147,19 @@ class Environment:
             contact = self.physicsenv.data.contact[i]
             if contact.dist > 1e-8:
                 continue
-            if (contact.geom1 in rh and contact.geom2 in lh) or (contact.geom1 in lh and contact.geom2 in rh):
+            if (contact.geom1 in rh and contact.geom2 in lh) or (
+                contact.geom1 in lh and contact.geom2 in rh
+            ):
                 colliding = True
                 break
         forearm_no_collision_reward = 0 if colliding else 0.5
 
-        return key_press_reward + finger_dist_reward - 0.005 * energy_penalty + forearm_no_collision_reward
+        return (
+            key_press_reward
+            + finger_dist_reward
+            - 0.005 * energy_penalty
+            + forearm_no_collision_reward
+        )
 
     def num_actions(self):
         return self.physicsenv.model.nu
