@@ -16,20 +16,20 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "twinkle_twinkle_little_star"
+MODEL_NAME = "another_love"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = True
-NUM_STEPS = 5000000
+NUM_STEPS = 3000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-TRAIN_SONGS = [Song.from_midi_file(Song.TWINKLE_TWINKLE_LITTLE_STAR)]
+TRAIN_SONGS = [Song.from_midi_file(Song.ANOTHER_LOVE)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_midi_file(Song.TWINKLE_TWINKLE_LITTLE_STAR)
+TEST_SONG = Song.from_midi_file(Song.ANOTHER_LOVE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
