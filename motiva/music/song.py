@@ -14,6 +14,12 @@ class Song:
     TWINKLE_TWINKLE_LITTLE_STAR = "twinkle_twinkle_little_star"
     SOMEWHERE_OVER_THE_RAINBOW = "somewhere_over_the_rainbow"
     ANOTHER_LOVE = "another_love"
+    
+    class Type:
+        DEBUG = "debug"
+        LEVEL_1 = "level_1"
+        LEVEL_2 = "level_2"
+        LEVEL_3 = "level_3"
 
     def __init__(self, name: str, data: np.ndarray):
         self.name = name
@@ -112,9 +118,9 @@ class Song:
         return round(time * Song.RESOLUTION)
 
     @staticmethod
-    def from_txt(name: str):
+    def from_txt(name: str, type: str):
         DIR = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(DIR, f"songs/{name}/{name}.txt")) as file:
+        with open(os.path.join(DIR, f"songs/{type}/{name}/{name}.txt")) as file:
             data = []
 
             for line in file:
@@ -145,11 +151,15 @@ class Song:
         )
 
         return Song(name=name, data=data)
-    
+
     @staticmethod
-    def from_midi_file(name: str):
+    def from_midi_file(name: str, type: str = ""):
         DIR = os.path.dirname(os.path.abspath(__file__))
-        midi = mido.MidiFile(os.path.join(DIR, f"songs/{name}/{name}.mid"))
+        midi = mido.MidiFile(
+            os.path.join(
+                DIR, f"songs/{type}/{name}/{name}.mid"
+            )
+        )
         return Song.from_midi(name, midi)
 
     @staticmethod

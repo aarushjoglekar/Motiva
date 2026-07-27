@@ -21,15 +21,17 @@ SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = True
-NUM_STEPS = 3000000
+TRAINING = False
+NUM_STEPS = 8000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-TRAIN_SONGS = [Song.from_midi_file(Song.ANOTHER_LOVE)]
+TRAIN_SONG_TYPE = Song.Type.DEBUG
+TRAIN_SONGS = [Song.from_midi_file(name=Song.ANOTHER_LOVE, type=TRAIN_SONG_TYPE)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_midi_file(Song.ANOTHER_LOVE)
+TEST_SONG_TYPE = Song.Type.DEBUG
+TEST_SONG = Song.from_midi_file(name=Song.ANOTHER_LOVE, type=TEST_SONG_TYPE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -68,7 +70,7 @@ def run_training(
         total_train_time = train_state["total_train_time"]
         total_loop_time = train_state["total_loop_time"]
         eval_history = train_state["eval_history"]
-        
+
         print(
             f"Resumed with {len(list(eval_history.values())[0]['steps'])} existing validation checkpoints."
         )
@@ -135,7 +137,9 @@ def run_training(
     loop_checkpoint_time = time.perf_counter() - start_time
     total_train_time += train_checkpoint_time
     total_loop_time += loop_checkpoint_time
-    print(f"Time Statistics:\n  Train Checkpoint Time: {train_checkpoint_time / 3600} hrs\n  Loop Checkpoint Time: {loop_checkpoint_time / 3600} hrs\n  Total Train Time: {total_train_time / 3600} hrs\n  Total Loop Time: {total_loop_time / 3600} hrs")
+    print(
+        f"Time Statistics:\n  Train Checkpoint Time: {train_checkpoint_time / 3600} hrs\n  Loop Checkpoint Time: {loop_checkpoint_time / 3600} hrs\n  Total Train Time: {total_train_time / 3600} hrs\n  Total Loop Time: {total_loop_time / 3600} hrs"
+    )
 
     train_state = {
         "song_keys": song_keys,
@@ -345,7 +349,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
 
 with Environment(songs=TRAIN_SONGS, should_render=(not TRAINING), seed=SEED) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
+    model_path = os.path.join(DIR, f"ml/models/{TRAIN_SONG_TYPE if TRAINING else TEST_SONG_TYPE}/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"
