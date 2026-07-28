@@ -25,13 +25,11 @@ TRAINING = False
 NUM_STEPS = 8000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-TRAIN_SONG_TYPE = Song.Type.DEBUG
-TRAIN_SONGS = [Song.from_midi_file(name=Song.ANOTHER_LOVE, type=TRAIN_SONG_TYPE)]
+TRAIN_SONGS = [Song.from_midi_file(song=Song.ANOTHER_LOVE)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG_TYPE = Song.Type.DEBUG
-TEST_SONG = Song.from_midi_file(name=Song.ANOTHER_LOVE, type=TEST_SONG_TYPE)
+TEST_SONG = Song.from_midi_file(Song.ANOTHER_LOVE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -278,7 +276,7 @@ def run_validation_episode(
         recall = None
         midi = env.save_piano_audio()
         if midi is not None:
-            precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
+            precision, recall, f1 = Song.from_midi(name="", type="", midi=midi).compare_to(
                 ground_truth=song
             )
 
@@ -339,7 +337,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     additional = ""
     midi = env.save_piano_audio()
     if midi is not None:
-        precision, recall, f1 = Song.from_midi(name="", midi=midi).compare_to(
+        precision, recall, f1 = Song.from_midi(name="", type="", midi=midi).compare_to(
             ground_truth=TEST_SONG
         )
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
@@ -349,7 +347,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
 
 with Environment(songs=TRAIN_SONGS, should_render=(not TRAINING), seed=SEED) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(DIR, f"ml/models/{TRAIN_SONG_TYPE if TRAINING else TEST_SONG_TYPE}/{MODEL_NAME}")
+    model_path = os.path.join(DIR, f"ml/models/{TEST_SONG.type}/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"

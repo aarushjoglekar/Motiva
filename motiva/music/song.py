@@ -3,6 +3,15 @@ import numpy as np
 from music import constants
 import mido
 
+class SongSelection:
+    DEBUG = "debug"
+    LEVEL_1 = "level_1"
+    LEVEL_2 = "level_2"
+    LEVEL_3 = "level_3"
+    
+    def __init__(self, name: str, type: str):
+        self.name = name
+        self.type = type
 
 class Song:
     RESOLUTION = 20  # per second
@@ -10,19 +19,18 @@ class Song:
     START_BUFFER = 10
 
     NUM_PIANO_NOTES = 88
-
-    TWINKLE_TWINKLE_LITTLE_STAR = "twinkle_twinkle_little_star"
-    SOMEWHERE_OVER_THE_RAINBOW = "somewhere_over_the_rainbow"
-    ANOTHER_LOVE = "another_love"
     
-    class Type:
-        DEBUG = "debug"
-        LEVEL_1 = "level_1"
-        LEVEL_2 = "level_2"
-        LEVEL_3 = "level_3"
+    TWINKLE_TWINKLE_LITTLE_STAR = SongSelection("twinkle_twinkle_little_star", SongSelection.DEBUG)
+    SOMEWHERE_OVER_THE_RAINBOW = SongSelection("somewhere_over_the_rainbow", SongSelection.DEBUG)
+    ANOTHER_LOVE = SongSelection("another_love", SongSelection.DEBUG)
+    
+    SOMEONE_LIKE_YOU_ADELE = SongSelection("someone_like_you_adele", SongSelection.LEVEL_1)
+    BELIEVER_IMAGINE_DRAGONS = SongSelection("believer_imagine_dragons", SongSelection.LEVEL_1)
+    PAYPHONE_WIZ_KHALIFA = SongSelection("payphone_wiz_khalifa", SongSelection.LEVEL_1)
 
-    def __init__(self, name: str, data: np.ndarray):
+    def __init__(self, name: str, type: str, data: np.ndarray):
         self.name = name
+        self.type = type
         self.data = data
         self.length = len(self.data)
 
@@ -118,9 +126,9 @@ class Song:
         return round(time * Song.RESOLUTION)
 
     @staticmethod
-    def from_txt(name: str, type: str):
+    def from_txt(song: SongSelection):
         DIR = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(DIR, f"songs/{type}/{name}/{name}.txt")) as file:
+        with open(os.path.join(DIR, f"songs/{song.type}/{song.name}/{song.name}.txt")) as file:
             data = []
 
             for line in file:
@@ -150,20 +158,20 @@ class Song:
             axis=0,
         )
 
-        return Song(name=name, data=data)
+        return Song(name=song.name, type=song.type, data=data)
 
     @staticmethod
-    def from_midi_file(name: str, type: str = ""):
+    def from_midi_file(song: SongSelection):
         DIR = os.path.dirname(os.path.abspath(__file__))
         midi = mido.MidiFile(
             os.path.join(
-                DIR, f"songs/{type}/{name}/{name}.mid"
+                DIR, f"songs/{song.type}/{song.name}/{song.name}.mid"
             )
         )
-        return Song.from_midi(name, midi)
+        return Song.from_midi(name=song.name, type=song.type, midi=midi)
 
     @staticmethod
-    def from_midi(name: str, midi: mido.MidiFile):
+    def from_midi(name: str, type: str, midi: mido.MidiFile):
         notes = []
         active_notes = {}
         abs_time = 0.0
@@ -196,4 +204,4 @@ class Song:
         for note_index, start, end in notes:
             data[max(0, start) : max(0, end), note_index] = 1
 
-        return Song(name=name, data=data)
+        return Song(name=name, type=type, data=data)
