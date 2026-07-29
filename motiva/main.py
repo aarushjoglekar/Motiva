@@ -16,20 +16,21 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "another_love"
+MODEL_NAME = "debug/twinkle_twinkle_little_star"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
 TRAINING = False
-NUM_STEPS = 8000000
+NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-TRAIN_SONGS = [Song.from_midi_file(song=Song.ANOTHER_LOVE)]
+USE_FINGERING_LABELS = False
+TRAIN_SONGS = [Song.from_txt(song=Song.TWINKLE_TWINKLE_LITTLE_STAR)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_midi_file(Song.ANOTHER_LOVE)
+TEST_SONG = Song.from_txt(Song.TWINKLE_TWINKLE_LITTLE_STAR)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -345,9 +346,9 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     print(f"Test Episode || Total Reward: {total_reward}{additional}")
 
 
-with Environment(songs=TRAIN_SONGS, should_render=(not TRAINING), seed=SEED) as env:
+with Environment(songs=TRAIN_SONGS, use_fingering_labels=USE_FINGERING_LABELS, should_render=(not TRAINING), seed=SEED) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(DIR, f"ml/models/{TEST_SONG.type}/{MODEL_NAME}")
+    model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"

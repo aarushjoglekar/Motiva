@@ -9,11 +9,14 @@ import helpers.helpers as helpers
 
 
 class Environment:
-    def __init__(self, songs: list[Song], should_render: bool, seed: int):
+    def __init__(
+        self, songs: list[Song], use_fingering_labels: bool, should_render: bool, seed: int
+    ):
         self.physicsenv = PhysicsEnv(seed=seed)
         self.rng = random.Random(seed)
 
         self.songs = songs
+        self.use_fingering_labels = use_fingering_labels
         self.should_render = should_render
         self.piano_audio = None
 
@@ -42,7 +45,7 @@ class Environment:
         self.start_time = time.perf_counter_ns()
 
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.current_song.sample_at(0)[0]
+        song_obs = self.current_song.sample_at(time=0, include_fingering_data=self.use_fingering_labels)[0]
 
         return self.get_obs(env_obs, song_obs)
 
@@ -56,7 +59,7 @@ class Environment:
 
         env_obs = self.physicsenv.step(action)
 
-        song_obs, truncated = self.current_song.sample_at(episode_time)
+        song_obs, fingers_to_keys, truncated = self.current_song.sample_at(time=episode_time, include_fingering_data=self.use_fingering_labels)
 
         if self.should_render:
             self.physicsenv.render()
@@ -73,6 +76,8 @@ class Environment:
             self.get_reward(
                 piano_actual_state=env_obs[0],
                 piano_goal_state=song_obs[: Song.NUM_PIANO_NOTES],
+                active_fingers=song_obs[Song.NUM_PIANO_NOTES : Song.NUM_FEATURES],
+                active_keys=fingers_to_keys,
             ),
             truncated,
         )
@@ -84,6 +89,8 @@ class Environment:
         self,
         piano_actual_state: np.ndarray,
         piano_goal_state: np.ndarray,
+        active_fingers: np.ndarray,
+        active_keys: np.ndarray,
     ):
         # key press reward
         key_should_be_pressed = np.where(piano_goal_state == 1)[0]
@@ -108,29 +115,48 @@ class Environment:
 
         key_press_reward = accurate_key_presses + no_false_positive_reward
 
-        # finger close to key reward (RP1M)
-        if len(key_should_be_pressed) == 0:
-            finger_dist_reward = 1
+        # finger close to key reward
+        if not self.use_fingering_labels: # OT reward from RP1M
+            if len(key_should_be_pressed) == 0:
+                finger_dist_reward = 1
+            else:
+                fingertip_positions = self.physicsenv.data.site_xpos[
+                    self.physicsenv.finger_site_ids
+                ]
+                active_key_positions = self.physicsenv.data.site_xpos[
+                    self.physicsenv.piano_site_ids[key_should_be_pressed]
+                ]
+                distances = np.linalg.norm(
+                    fingertip_positions[:, None, :] - active_key_positions[None, :, :],
+                    axis=-1,
+                )
+                row_indices, col_indices = optimize.linear_sum_assignment(distances)
+                optimized_distances = distances[row_indices, col_indices]
+                finger_dist_reward = helpers.proximity_reward(
+                    optimized_distances,
+                    lower=0,
+                    upper=0.01,
+                    margin=0.1,
+                    value_at_margin=0.1,
+                ).mean()
         else:
-            fingertip_positions = self.physicsenv.data.site_xpos[
-                self.physicsenv.finger_site_ids
+            active_finger_site_ids = self.physicsenv.finger_site_ids[
+                np.where(active_fingers == 1)
             ]
-            active_key_positions = self.physicsenv.data.site_xpos[
-                self.physicsenv.piano_site_ids[key_should_be_pressed]
-            ]
-            distances = np.linalg.norm(
-                fingertip_positions[:, None, :] - active_key_positions[None, :, :],
-                axis=-1,
+            fingertip_positions = self.physicsenv.data.site_xpos[active_finger_site_ids]
+            key_site_ids = self.physicsenv.piano_site_ids[
+                active_keys[active_keys >= 0]
+            ]  # active keys is in order of active fingers
+            active_keys_positions = self.physicsenv.data.site_xpos[key_site_ids]
+
+            dist = np.linalg.norm(fingertip_positions - active_keys_positions, axis=-1)
+            finger_dist_reward = (
+                0
+                if len(active_keys_positions) == 0
+                else helpers.proximity_reward(
+                    dist, lower=0, upper=0.01, margin=0.1, value_at_margin=0.1
+                ).mean()
             )
-            row_indices, col_indices = optimize.linear_sum_assignment(distances)
-            optimized_distances = distances[row_indices, col_indices]
-            finger_dist_reward = helpers.proximity_reward(
-                optimized_distances,
-                lower=0,
-                upper=0.01,
-                margin=0.1,
-                value_at_margin=0.1,
-            ).mean()
 
         # energy efficiency penalty
         joint_torques = self.physicsenv.data.qfrc_actuator[
@@ -166,7 +192,7 @@ class Environment:
 
     def num_observations(self):
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.songs[0].sample_at(0)[0]
+        song_obs = self.songs[0].sample_at(time=0, include_fingering_data=self.use_fingering_labels)[0]
         return self.get_obs(env_obs, song_obs).shape[0]
 
     def render(self):
