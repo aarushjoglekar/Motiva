@@ -310,7 +310,7 @@ class Song:
                         )
                     )
 
-        length = max((end for _, _, end, _, _ in notes), default=0)
+        length = max((max(end, start + 1) for _, start, end, _, _ in notes), default=0)
         data = np.zeros((length, Song.NUM_FEATURES), dtype=int)
         fingers_to_keys_data = np.zeros((length, Song.NUM_FINGERS), dtype=int) - 1
         onset_velocity_data = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=np.float32)
@@ -325,9 +325,11 @@ class Song:
             onset_velocity,
             offset_velocity,
         ) in notes:
-            data[max(0, start) : max(0, end), note_index] = 1
-            onset_velocity_data[max(0, start), note_index] = onset_velocity / 127.0
-            offset_velocity_data[max(0, end - 1), note_index] = offset_velocity / 127.0
+            start = max(0, start)
+            end = max(start + 1, end)
+            data[start:end, note_index] = 1
+            onset_velocity_data[start, note_index] = onset_velocity / 127.0
+            offset_velocity_data[end - 1, note_index] = offset_velocity / 127.0
 
         if should_add_start_buffer:
             data = np.concatenate(

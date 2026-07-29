@@ -16,21 +16,21 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "debug/twinkle_twinkle_little_star"
+MODEL_NAME = "debug/another_love"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = False
+TRAINING = True
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-USE_FINGERING_LABELS = False
-TRAIN_SONGS = [Song.from_txt(song=Song.TWINKLE_TWINKLE_LITTLE_STAR)]
+USE_FINGERING_LABELS = True
+TRAIN_SONGS = [Song.from_txt(song=Song.ANOTHER_LOVE)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_txt(Song.TWINKLE_TWINKLE_LITTLE_STAR)
+TEST_SONG = Song.from_txt(Song.ANOTHER_LOVE)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
