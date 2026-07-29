@@ -18,6 +18,21 @@ NOTES = {
     "B": 11,
 }
 
+NOTE_NAMES_NO_OVERLAP = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+]
+
 """
 -5 -> 0 -> left pinky
 -4 -> 1 -> left ring finger
