@@ -3,15 +3,17 @@ import numpy as np
 from music import constants
 import mido
 
+
 class SongSelection:
     DEBUG = "debug"
     LEVEL_1 = "level_1"
     LEVEL_2 = "level_2"
     LEVEL_3 = "level_3"
-    
+
     def __init__(self, name: str, type: str):
         self.name = name
         self.type = type
+
 
 class Song:
     RESOLUTION = 20  # per second
@@ -19,19 +21,36 @@ class Song:
     START_BUFFER = 10
 
     NUM_PIANO_NOTES = 88
-    
-    TWINKLE_TWINKLE_LITTLE_STAR = SongSelection("twinkle_twinkle_little_star", SongSelection.DEBUG)
-    SOMEWHERE_OVER_THE_RAINBOW = SongSelection("somewhere_over_the_rainbow", SongSelection.DEBUG)
+
+    TWINKLE_TWINKLE_LITTLE_STAR = SongSelection(
+        "twinkle_twinkle_little_star", SongSelection.DEBUG
+    )
+    SOMEWHERE_OVER_THE_RAINBOW = SongSelection(
+        "somewhere_over_the_rainbow", SongSelection.DEBUG
+    )
     ANOTHER_LOVE = SongSelection("another_love", SongSelection.DEBUG)
-    
-    SOMEONE_LIKE_YOU_ADELE = SongSelection("someone_like_you_adele", SongSelection.LEVEL_1)
-    BELIEVER_IMAGINE_DRAGONS = SongSelection("believer_imagine_dragons", SongSelection.LEVEL_1)
+
+    SOMEONE_LIKE_YOU_ADELE = SongSelection(
+        "someone_like_you_adele", SongSelection.LEVEL_1
+    )
+    BELIEVER_IMAGINE_DRAGONS = SongSelection(
+        "believer_imagine_dragons", SongSelection.LEVEL_1
+    )
     PAYPHONE_WIZ_KHALIFA = SongSelection("payphone_wiz_khalifa", SongSelection.LEVEL_1)
 
-    def __init__(self, name: str, type: str, data: np.ndarray):
+    def __init__(
+        self,
+        name: str,
+        type: str,
+        data: np.ndarray,
+        onset_velocity_data: np.ndarray,
+        offset_velocity_data: np.ndarray,
+    ):
         self.name = name
         self.type = type
         self.data = data
+        self.onset_velocity_data = onset_velocity_data
+        self.offset_velocity_data = offset_velocity_data
         self.length = len(self.data)
 
     def sample_at(self, time: float):
@@ -97,15 +116,17 @@ class Song:
 
             for note in note_offs:
                 delta = time_to_ticks(frame_time - last_event_time)
+                offset_velocity = int(round(self.offset_velocity_data[i, note] * 127))
                 track.append(
-                    mido.Message("note_off", note=21 + note, velocity=0, time=delta)
+                    mido.Message("note_off", note=21 + note, velocity=offset_velocity, time=delta)
                 )
                 last_event_time = frame_time
 
             for note in note_ons:
                 delta = time_to_ticks(frame_time - last_event_time)
+                onset_velocity = max(1, min(127, int(round(self.onset_velocity_data[i, note] * 127))))
                 track.append(
-                    mido.Message("note_on", note=21 + note, velocity=64, time=delta)
+                    mido.Message("note_on", note=21 + note, velocity=onset_velocity, time=delta)
                 )
                 last_event_time = frame_time
 
@@ -114,8 +135,9 @@ class Song:
         final_time = self.length / Song.RESOLUTION
         for note in np.where(prev_notes)[0]:
             delta = time_to_ticks(final_time - last_event_time)
+            offset_velocity = int(round(self.offset_velocity_data[self.length - 1, note] * 127))
             track.append(
-                mido.Message("note_off", note=21 + note, velocity=0, time=delta)
+                mido.Message("note_off", note=21 + note, velocity=offset_velocity, time=delta)
             )
             last_event_time = final_time
 
@@ -128,8 +150,12 @@ class Song:
     @staticmethod
     def from_txt(song: SongSelection):
         DIR = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(DIR, f"songs/{song.type}/{song.name}/{song.name}.txt")) as file:
+        with open(
+            os.path.join(DIR, f"songs/{song.type}/{song.name}/{song.name}.txt")
+        ) as file:
             data = []
+            onset_velocity_data = []
+            offset_velocity_data = []
 
             for line in file:
                 line = line.strip().split("\t")
@@ -145,33 +171,73 @@ class Song:
                 octave = int(raw_note[-1])
                 active_note = 12 * (octave - 1) + note_value + 3
 
+                onset_velocity = float(line[4]) / 127.0
+                offset_velocity = float(line[5]) / 127.0
+
                 diff = end_time_index - len(data)
                 if diff > 0:
-                    data += [np.zeros(Song.NUM_PIANO_NOTES) for _ in range(diff)]
+                    data += [np.zeros(Song.NUM_PIANO_NOTES, dtype=int) for _ in range(diff)]
+                    onset_velocity_data += [
+                        np.zeros(Song.NUM_PIANO_NOTES, dtype=np.float32) for _ in range(diff)
+                    ]
+                    offset_velocity_data += [
+                        np.zeros(Song.NUM_PIANO_NOTES, dtype=np.float32) for _ in range(diff)
+                    ]
 
                 for index in range(start_time_index, end_time_index - 1):
                     data[index][active_note] = 1
 
+                onset_velocity_data[start_time_index][active_note] = onset_velocity
+                offset_velocity_data[end_time_index - 1][active_note] = offset_velocity
+
+        start_buffer_int = np.zeros(
+            (Song.START_BUFFER, Song.NUM_PIANO_NOTES), dtype=int
+        )
+        start_buffer_float = np.zeros(
+            (Song.START_BUFFER, Song.NUM_PIANO_NOTES), dtype=np.float32
+        )
+
         data = np.array(data, dtype=int)
         data = np.concatenate(
-            [np.zeros((Song.START_BUFFER, *data.shape[1:]), dtype=np.int16), data],
+            [start_buffer_int, data],
             axis=0,
         )
 
-        return Song(name=song.name, type=song.type, data=data)
+        onset_velocity_data = np.array(onset_velocity_data, dtype=np.float32)
+        onset_velocity_data = np.concatenate(
+            [start_buffer_float, onset_velocity_data], axis=0
+        )
+
+        offset_velocity_data = np.array(offset_velocity_data, dtype=np.float32)
+        offset_velocity_data = np.concatenate(
+            [start_buffer_float, offset_velocity_data], axis=0
+        )
+
+        return Song(
+            name=song.name,
+            type=song.type,
+            data=data,
+            onset_velocity_data=onset_velocity_data,
+            offset_velocity_data=offset_velocity_data,
+        )
 
     @staticmethod
-    def from_midi_file(song: SongSelection):
+    def from_midi_file(song: SongSelection, should_add_start_buffer: bool = True):
         DIR = os.path.dirname(os.path.abspath(__file__))
         midi = mido.MidiFile(
-            os.path.join(
-                DIR, f"songs/{song.type}/{song.name}/{song.name}.mid"
-            )
+            os.path.join(DIR, f"songs/{song.type}/{song.name}/{song.name}.mid")
         )
-        return Song.from_midi(name=song.name, type=song.type, midi=midi)
+        return Song.from_midi(
+            name=song.name,
+            type=song.type,
+            should_add_start_buffer=should_add_start_buffer,
+            midi=midi,
+        )
 
     @staticmethod
-    def from_midi(name: str, type: str, midi: mido.MidiFile):
+    def from_midi(
+        name: str, type: str, should_add_start_buffer: bool, midi: mido.MidiFile
+    ):
         notes = []
         active_notes = {}
         abs_time = 0.0
@@ -180,7 +246,7 @@ class Song:
             abs_time += msg.time
 
             if msg.type == "note_on" and msg.velocity > 0:
-                active_notes[msg.note] = abs_time
+                active_notes[msg.note] = (abs_time, msg.velocity)
 
             elif msg.type == "note_off" or (
                 msg.type == "note_on" and msg.velocity == 0
@@ -188,20 +254,54 @@ class Song:
                 onset = active_notes.pop(msg.note, None)
                 if onset is None:
                     continue
+                onset_time, onset_velocity = onset
                 note_index = msg.note - 21
                 if 0 <= note_index < Song.NUM_PIANO_NOTES:
                     notes.append(
                         (
                             note_index,
-                            Song.time_to_index(onset),
+                            Song.time_to_index(onset_time),
                             Song.time_to_index(abs_time),
+                            onset_velocity,
+                            msg.velocity,
                         )
                     )
 
-        length = max((end for _, _, end in notes), default=0)
+        length = max((end for _, _, end , _, _ in notes), default=0)
         data = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=int)
+        onset_velocity_data = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=np.float32)
+        offset_velocity_data = np.zeros((length, Song.NUM_PIANO_NOTES), dtype=np.float32)
 
-        for note_index, start, end in notes:
+        for (
+            note_index,
+            start,
+            end,
+            onset_velocity,
+            offset_velocity,
+        ) in notes:
             data[max(0, start) : max(0, end), note_index] = 1
+            onset_velocity_data[max(0, start), note_index] = onset_velocity / 127.0
+            offset_velocity_data[max(0, end - 1), note_index] = offset_velocity / 127.0
 
-        return Song(name=name, type=type, data=data)
+        if should_add_start_buffer:
+            start_buffer_int = np.zeros(
+                (Song.START_BUFFER, Song.NUM_PIANO_NOTES), dtype=int
+            )
+            start_buffer_float = np.zeros(
+                (Song.START_BUFFER, Song.NUM_PIANO_NOTES), dtype=np.float32
+            )
+            data = np.concatenate([start_buffer_int, data], axis=0)
+            onset_velocity_data = np.concatenate(
+                [start_buffer_float, onset_velocity_data], axis=0
+            )
+            offset_velocity_data = np.concatenate(
+                [start_buffer_float, offset_velocity_data], axis=0
+            )
+
+        return Song(
+            name=name,
+            type=type,
+            data=data,
+            onset_velocity_data=onset_velocity_data,
+            offset_velocity_data=offset_velocity_data,
+        )

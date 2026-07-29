@@ -276,7 +276,7 @@ def run_validation_episode(
         recall = None
         midi = env.save_piano_audio()
         if midi is not None:
-            precision, recall, f1 = Song.from_midi(name="", type="", midi=midi).compare_to(
+            precision, recall, f1 = Song.from_midi(name="", type="", should_add_start_buffer=False, midi=midi).compare_to(
                 ground_truth=song
             )
 
@@ -337,7 +337,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     additional = ""
     midi = env.save_piano_audio()
     if midi is not None:
-        precision, recall, f1 = Song.from_midi(name="", type="", midi=midi).compare_to(
+        precision, recall, f1 = Song.from_midi(name="", type="", should_add_start_buffer=False, midi=midi).compare_to(
             ground_truth=TEST_SONG
         )
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
