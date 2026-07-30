@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "baseline/level_1/someone_like_you_adele"
+MODEL_NAME = "baseline/level_1/believer_imagine_dragons"
 SEED = 42
 DISABLE_CUDA = False
 
@@ -26,11 +26,11 @@ NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 USE_FINGERING_LABELS = True
-TRAIN_SONGS = [Song.from_txt(song=Song.SOMEONE_LIKE_YOU_ADELE)]
+TRAIN_SONGS = [Song.from_txt(song=Song.BELIEVER_IMAGINE_DRAGONS)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_txt(Song.SOMEONE_LIKE_YOU_ADELE)
+TEST_SONG = Song.from_txt(Song.BELIEVER_IMAGINE_DRAGONS)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
