@@ -16,21 +16,21 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "baseline/level_1/someone_like_you_adele"
+MODEL_NAME = "baseline/level_1/payphone_wiz_khalifa"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = True
+TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 USE_FINGERING_LABELS = True
-TRAIN_SONGS = [Song.from_txt(song=Song.SOMEONE_LIKE_YOU_ADELE)]
+TRAIN_SONGS = [Song.from_txt(song=Song.PAYPHONE_WIZ_KHALIFA)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_txt(Song.SOMEONE_LIKE_YOU_ADELE)
+TEST_SONG = Song.from_txt(Song.PAYPHONE_WIZ_KHALIFA)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
