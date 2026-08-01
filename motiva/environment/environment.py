@@ -9,8 +9,6 @@ import helpers.helpers as helpers
 
 
 class Environment:
-    ONSET_TOLERANCE_DYNAMICS_REWARD = 5
-
     def __init__(
         self,
         songs: list[Song],
@@ -214,12 +212,12 @@ class Environment:
 
                 for pitch in onset_pitches:
                     low = max(
-                        0, self.step_count - Environment.ONSET_TOLERANCE_DYNAMICS_REWARD
+                        0, self.step_count - Song.ONSET_TOLERANCE
                     )
                     high = min(
                         self.current_song.onset_velocity_data.shape[0],
                         self.step_count
-                        + Environment.ONSET_TOLERANCE_DYNAMICS_REWARD
+                        + Song.ONSET_TOLERANCE
                         + 1,
                     )
                     window = self.current_song.onset_velocity_data[low:high, pitch]

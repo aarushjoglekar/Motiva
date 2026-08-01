@@ -20,6 +20,8 @@ class Song:
     LOOKAHEAD = 10
     START_BUFFER = 10
 
+    ONSET_TOLERANCE = 3
+
     NUM_PIANO_NOTES = 88
     NUM_FINGERS = 10
     NUM_FEATURES = NUM_PIANO_NOTES + NUM_FINGERS
@@ -120,7 +122,66 @@ class Song:
             else 0.0
         )
 
-        return precision, recall, f1
+        dynamics_score, match_rate = self.compare_to_dynamics(ground_truth=ground_truth)
+
+        return precision, recall, f1, dynamics_score, match_rate
+
+    def compare_to_dynamics(self, ground_truth: "Song"):
+        dynamics_square_error = []
+        num_ground_truth_onsets = 0
+        used_actual_notes = set()
+
+        for step_index, pitches in enumerate(ground_truth.onset_velocity_data):
+            onset_pitches = np.nonzero(pitches)[0]
+
+            if len(onset_pitches) == 0:
+                continue  # no ground-truth played notes
+
+            low = max(0, step_index - Song.ONSET_TOLERANCE)
+            high = min(
+                self.length,
+                step_index + Song.ONSET_TOLERANCE + 1,
+            )
+
+            for onset_pitch in onset_pitches:
+                num_ground_truth_onsets += 1
+
+                window = self.onset_velocity_data[low:high, onset_pitch]
+                nonzero = np.nonzero(window)[0]
+
+                match_time = None
+                best_dist = Song.ONSET_TOLERANCE + 1
+                for offset in nonzero:
+                    candidate_time = low + offset
+
+                    if (onset_pitch, candidate_time) in used_actual_notes:
+                        continue  # actual note already matched with another ground truth note
+
+                    dist = abs(candidate_time - step_index)
+                    if dist < best_dist:
+                        best_dist = dist
+                        match_time = candidate_time
+
+                if match_time is None:
+                    continue  # no unused actual note found
+
+                used_actual_notes.add((onset_pitch, match_time))
+                achieved_velocity = self.onset_velocity_data[match_time, onset_pitch]
+                target_velocity = pitches[onset_pitch]
+                dynamics_square_error.append((target_velocity - achieved_velocity) ** 2)
+
+        dynamics_score = (
+            1 - (np.array(dynamics_square_error).mean() ** 0.5)
+            if len(dynamics_square_error) != 0
+            else None
+        )
+        match_rate = (
+            len(dynamics_square_error) / num_ground_truth_onsets
+            if num_ground_truth_onsets > 0
+            else 0
+        )
+
+        return dynamics_score, match_rate
 
     def to_midi(self):
         ticks_per_beat = 480
