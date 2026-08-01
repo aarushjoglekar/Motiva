@@ -9,14 +9,22 @@ import helpers.helpers as helpers
 
 
 class Environment:
+    ONSET_TOLERANCE_DYNAMICS_REWARD = 5
+
     def __init__(
-        self, songs: list[Song], use_fingering_labels: bool, should_render: bool, seed: int
+        self,
+        songs: list[Song],
+        use_fingering_labels: bool,
+        use_dynamics_data: bool,
+        should_render: bool,
+        seed: int,
     ):
         self.physicsenv = PhysicsEnv(seed=seed)
         self.rng = random.Random(seed)
 
         self.songs = songs
         self.use_fingering_labels = use_fingering_labels
+        self.use_dynamics_data = use_dynamics_data
         self.should_render = should_render
         self.piano_audio = None
 
@@ -45,7 +53,11 @@ class Environment:
         self.start_time = time.perf_counter_ns()
 
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.current_song.sample_at(time=0, include_fingering_data=self.use_fingering_labels)[0]
+        song_obs = self.current_song.sample_at(
+            time=0,
+            include_fingering_data=self.use_fingering_labels,
+            include_onset_velocity_data=self.use_dynamics_data,
+        )[0]
 
         return self.get_obs(env_obs, song_obs)
 
@@ -59,15 +71,23 @@ class Environment:
 
         env_obs = self.physicsenv.step(action)
 
-        song_obs, fingers_to_keys, truncated = self.current_song.sample_at(time=episode_time, include_fingering_data=self.use_fingering_labels)
+        song_obs, fingers_to_keys, active_fingers, truncated = (
+            self.current_song.sample_at(
+                time=episode_time,
+                include_fingering_data=self.use_fingering_labels,
+                include_onset_velocity_data=self.use_dynamics_data,
+            )
+        )
 
         if self.should_render:
             self.physicsenv.render()
 
+        piano_qvel = self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids]
+
         if self.piano_audio is not None:
-            self.piano_audio.update(
+            new_onsets = self.piano_audio.update(
                 env_obs[0],
-                self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids],
+                piano_qvel,
                 episode_time,
             )
 
@@ -76,8 +96,10 @@ class Environment:
             self.get_reward(
                 piano_actual_state=env_obs[0],
                 piano_goal_state=song_obs[: Song.NUM_PIANO_NOTES],
-                active_fingers=song_obs[Song.NUM_PIANO_NOTES : Song.NUM_FEATURES],
+                active_fingers=active_fingers,
                 active_keys=fingers_to_keys,
+                new_onsets=new_onsets,
+                piano_qvel=piano_qvel,
             ),
             truncated,
         )
@@ -91,6 +113,8 @@ class Environment:
         piano_goal_state: np.ndarray,
         active_fingers: np.ndarray,
         active_keys: np.ndarray,
+        new_onsets: np.ndarray,
+        piano_qvel: np.ndarray,
     ):
         # key press reward
         key_should_be_pressed = np.where(piano_goal_state == 1)[0]
@@ -116,7 +140,7 @@ class Environment:
         key_press_reward = accurate_key_presses + no_false_positive_reward
 
         # finger close to key reward
-        if not self.use_fingering_labels: # OT reward from RP1M
+        if not self.use_fingering_labels:  # OT reward from RP1M
             if len(key_should_be_pressed) == 0:
                 finger_dist_reward = 1
             else:
@@ -180,11 +204,51 @@ class Environment:
                 break
         forearm_no_collision_reward = 0 if colliding else 0.5
 
+        # dynamics reward
+        dynamics_reward = 0
+        if self.use_dynamics_data:
+            onset_pitches = np.where(new_onsets)[0]
+
+            if len(onset_pitches) > 0:
+                dynamics_errors = []
+
+                for pitch in onset_pitches:
+                    low = max(
+                        0, self.step_count - Environment.ONSET_TOLERANCE_DYNAMICS_REWARD
+                    )
+                    high = min(
+                        self.current_song.onset_velocity_data.shape[0],
+                        self.step_count
+                        + Environment.ONSET_TOLERANCE_DYNAMICS_REWARD
+                        + 1,
+                    )
+                    window = self.current_song.onset_velocity_data[low:high, pitch]
+                    nonzero = np.nonzero(window)[0]
+
+                    if len(nonzero) == 0:
+                        continue  # no nearby ground-truth onset
+
+                    target_velocity = window[nonzero[0]]
+                    achieved_velocity = PianoAudio.compute_velocity_norm(
+                        float(piano_qvel[pitch])
+                    )
+                    dynamics_errors.append(abs(target_velocity - achieved_velocity))
+
+                if len(dynamics_errors) > 0:
+                    dynamics_reward = helpers.proximity_reward(
+                        np.array(dynamics_errors),
+                        lower=0,
+                        upper=0.2,
+                        margin=0.65,
+                        value_at_margin=0.1,
+                    ).mean()
+
         return (
             key_press_reward
             + finger_dist_reward
             - 0.005 * energy_penalty
             + forearm_no_collision_reward
+            + dynamics_reward
         )
 
     def num_actions(self):
@@ -192,7 +256,11 @@ class Environment:
 
     def num_observations(self):
         env_obs = self.physicsenv.get_obs()
-        song_obs = self.songs[0].sample_at(time=0, include_fingering_data=self.use_fingering_labels)[0]
+        song_obs = self.songs[0].sample_at(
+            time=0,
+            include_fingering_data=self.use_fingering_labels,
+            include_onset_velocity_data=self.use_dynamics_data,
+        )[0]
         return self.get_obs(env_obs, song_obs).shape[0]
 
     def render(self):

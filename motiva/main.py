@@ -25,6 +25,7 @@ TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
+USE_DYNAMICS_DATA = True
 USE_FINGERING_LABELS = True
 TRAIN_SONGS = [Song.from_txt(song=Song.PAYPHONE_WIZ_KHALIFA)]
 
@@ -277,9 +278,9 @@ def run_validation_episode(
         recall = None
         midi = env.save_piano_audio()
         if midi is not None:
-            precision, recall, f1 = Song.from_midi(name="", type="", should_add_start_buffer=False, midi=midi).compare_to(
-                ground_truth=song
-            )
+            precision, recall, f1 = Song.from_midi(
+                name="", type="", should_add_start_buffer=False, midi=midi
+            ).compare_to(ground_truth=song)
 
             eval_history[song.name]["steps"].append(num_steps)
             eval_history[song.name]["f1"].append(f1)
@@ -338,15 +339,21 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     additional = ""
     midi = env.save_piano_audio()
     if midi is not None:
-        precision, recall, f1 = Song.from_midi(name="", type="", should_add_start_buffer=False, midi=midi).compare_to(
-            ground_truth=TEST_SONG
-        )
+        precision, recall, f1 = Song.from_midi(
+            name="", type="", should_add_start_buffer=False, midi=midi
+        ).compare_to(ground_truth=TEST_SONG)
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1}"
 
     print(f"Test Episode || Total Reward: {total_reward}{additional}")
 
 
-with Environment(songs=TRAIN_SONGS, use_fingering_labels=USE_FINGERING_LABELS, should_render=(not TRAINING), seed=SEED) as env:
+with Environment(
+    songs=TRAIN_SONGS,
+    use_fingering_labels=USE_FINGERING_LABELS,
+    use_dynamics_data=USE_DYNAMICS_DATA,
+    should_render=(not TRAINING),
+    seed=SEED,
+) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)

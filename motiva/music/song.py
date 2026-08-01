@@ -57,7 +57,12 @@ class Song:
         self.offset_velocity_data = offset_velocity_data
         self.length = len(self.data)
 
-    def sample_at(self, time: float, include_fingering_data: bool):
+    def sample_at(
+        self,
+        time: float,
+        include_fingering_data: bool,
+        include_onset_velocity_data: bool,
+    ):
         index = min(Song.time_to_index(time), self.length - 1)
         end = index + Song.LOOKAHEAD
         truncated = index >= self.length - 1
@@ -69,12 +74,25 @@ class Song:
                 self.data[index:], ((0, end - self.length), (0, 0)), mode="constant"
             )
 
+        active_fingers = samples[0, Song.NUM_PIANO_NOTES : Song.NUM_FEATURES]
+
         if not include_fingering_data:
             samples = samples[:, : Song.NUM_PIANO_NOTES]
 
+        if include_onset_velocity_data:
+            if end <= self.length:
+                onset_samples = self.onset_velocity_data[index:end]
+            else:
+                onset_samples = np.pad(
+                    self.onset_velocity_data[index:],
+                    ((0, end - self.length), (0, 0)),
+                    mode="constant",
+                )
+            samples = np.concatenate([samples, onset_samples], axis=1)
+
         fingers_to_keys_sample = self.fingers_to_keys_data[index]
 
-        return samples.ravel(), fingers_to_keys_sample, truncated
+        return samples.ravel(), fingers_to_keys_sample, active_fingers, truncated
 
     def total_time(self):
         return self.length / Song.RESOLUTION

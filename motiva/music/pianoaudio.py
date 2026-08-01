@@ -3,6 +3,7 @@ import fluidsynth
 import numpy as np
 import mido
 
+
 class PianoAudio:
     NOTES_BEFORE_A1 = 21
     PRESS_THRESHOLD = 0.75
@@ -11,7 +12,9 @@ class PianoAudio:
     MAX_AUDIO_VEL = 127
     GAMMA = 0.5
 
-    def __init__(self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file:str):
+    def __init__(
+        self, play_audio: bool, record_midi: bool, save_midi: bool, midi_file: str
+    ):
         self.play_audio = play_audio
         self.record_midi = record_midi
         self.save_midi = save_midi
@@ -33,41 +36,62 @@ class PianoAudio:
             self.mid = mido.MidiFile(ticks_per_beat=self.ticks_per_beat)
             self.track = self.mid.add_track()
 
-        self.is_useless = not self.play_audio and not self.record_midi and not self.save_midi
+        self.is_useless = (
+            not self.play_audio and not self.record_midi and not self.save_midi
+        )
 
-    def update(self, piano_qpos: np.ndarray, piano_qvel: np.ndarray, episode_time: float):
-        if self.is_useless:
-            return
+    def update(
+        self, piano_qpos: np.ndarray, piano_qvel: np.ndarray, episode_time: float
+    ):
+        currently_pressed = piano_qpos > PianoAudio.PRESS_THRESHOLD
+        new_onsets = currently_pressed & ~self.key_pressed
+        new_offsets = ~currently_pressed & self.key_pressed
 
-        for i in range(88):
-            pressed = piano_qpos[i] > self.PRESS_THRESHOLD
-            was_pressed = self.key_pressed[i]
-
-            if pressed and not was_pressed:
-                velocity_norm = np.clip(np.abs(piano_qvel[i]) / PianoAudio.MAX_QVEL, 0.0, 1.0)
-                listening_velocity = round(PianoAudio.MIN_AUDIO_VEL + (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL) * (velocity_norm ** PianoAudio.GAMMA))
-                midi_velocity = round(PianoAudio.MIN_AUDIO_VEL + (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL) * velocity_norm)
+        if not self.is_useless:
+            for i in np.where(new_onsets)[0]:
+                velocity_norm = float(
+                    PianoAudio.compute_velocity_norm(float(piano_qvel[i]))
+                )
+                listening_velocity = round(
+                    PianoAudio.MIN_AUDIO_VEL
+                    + (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL)
+                    * (velocity_norm**PianoAudio.GAMMA)
+                )
+                midi_velocity = round(
+                    PianoAudio.MIN_AUDIO_VEL
+                    + (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL)
+                    * velocity_norm
+                )
                 if self.play_audio:
-                    self.fluidsynth.noteon(0, PianoAudio.NOTES_BEFORE_A1 + i, listening_velocity)
+                    self.fluidsynth.noteon(
+                        0, PianoAudio.NOTES_BEFORE_A1 + i, listening_velocity
+                    )
                 if self.record_midi or self.save_midi:
-                    self.track.append(mido.Message(
-                        "note_on",
-                        note=PianoAudio.NOTES_BEFORE_A1 + i,
-                        velocity=midi_velocity,
-                        time=self.calculate_delta_ticks(episode_time)
-                    ))
-            elif not pressed and was_pressed:
+                    self.track.append(
+                        mido.Message(
+                            "note_on",
+                            note=PianoAudio.NOTES_BEFORE_A1 + i,
+                            velocity=midi_velocity,
+                            time=self.calculate_delta_ticks(episode_time),
+                        )
+                    )
+
+            for i in np.where(new_offsets)[0]:
                 if self.play_audio:
                     self.fluidsynth.noteoff(0, PianoAudio.NOTES_BEFORE_A1 + i)
                 if self.record_midi or self.save_midi:
-                    self.track.append(mido.Message(
-                        "note_off",
-                        note=PianoAudio.NOTES_BEFORE_A1 + i,
-                        velocity=0,
-                        time=self.calculate_delta_ticks(episode_time)
-                    ))
+                    self.track.append(
+                        mido.Message(
+                            "note_off",
+                            note=PianoAudio.NOTES_BEFORE_A1 + i,
+                            velocity=0,
+                            time=self.calculate_delta_ticks(episode_time),
+                        )
+                    )
 
-            self.key_pressed[i] = pressed
+        self.key_pressed = currently_pressed
+
+        return new_onsets
 
     def calculate_delta_ticks(self, episode_time: float):
         delta_ticks = int((episode_time - self.last_event_time) / self.seconds_per_tick)
@@ -84,3 +108,7 @@ class PianoAudio:
 
         if self.record_midi:
             return self.mid
+
+    @staticmethod
+    def compute_velocity_norm(q_vel: float):
+        return np.clip(np.abs(q_vel) / PianoAudio.MAX_QVEL, 0.0, 1.0)
