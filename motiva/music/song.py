@@ -171,7 +171,7 @@ class Song:
                 dynamics_square_error.append((target_velocity - achieved_velocity) ** 2)
 
         dynamics_score = (
-            1 - (np.array(dynamics_square_error).mean() ** 0.5)
+            1 - float(np.array(dynamics_square_error).mean() ** 0.5)
             if len(dynamics_square_error) != 0
             else None
         )

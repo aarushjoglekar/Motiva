@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "baseline/level_1/payphone_wiz_khalifa"
+MODEL_NAME = "dynamics/level_1/payphone_wiz_khalifa"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = False
+TRAINING = True
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
-USE_DYNAMICS_DATA = False
+USE_DYNAMICS_DATA = True
 USE_FINGERING_LABELS = True
 TRAIN_SONGS = [Song.from_txt(song=Song.PAYPHONE_WIZ_KHALIFA)]
 
@@ -81,6 +81,8 @@ def run_training(
                 "f1": [],
                 "precision": [],
                 "recall": [],
+                "dynamics_score": [],
+                "match_rate": [],
             }
 
     next_validation = num_steps + VALIDATION_INTERVAL
