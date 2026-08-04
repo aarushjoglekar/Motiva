@@ -44,8 +44,8 @@ class Environment:
             play_audio=play_audio,
             record_midi=record_midi,
             save_midi=save_midi,
-            midi_file=midi_file
-        )    
+            midi_file=midi_file,
+        )
 
         self.physicsenv.reset()
         self.step_count = 0
@@ -67,7 +67,7 @@ class Environment:
         self.step_count += 1
         episode_time = self.step_count / Song.RESOLUTION
 
-        env_obs = self.physicsenv.step(action)
+        env_obs, piano_qpos_trace, piano_qvel_trace = self.physicsenv.step(action)
 
         song_obs, fingers_to_keys, active_fingers, truncated = (
             self.current_song.sample_at(
@@ -80,13 +80,19 @@ class Environment:
         if self.should_render:
             self.physicsenv.render()
 
-        piano_qvel = self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids]
+        new_onsets = np.zeros(88, dtype=bool)
+        onset_qvel = np.zeros(88, dtype=np.float32)
 
-        new_onsets = self.piano_audio.update(
-            env_obs[0],
-            piano_qvel,
-            episode_time,
-        )
+        for i in range(piano_qpos_trace.shape[0]):
+            substep_onsets = self.piano_audio.update(
+                piano_qpos_trace[i],
+                piano_qvel_trace[i],
+                episode_time,
+            )
+            new_onsets |= substep_onsets
+            onset_qvel[substep_onsets] = piano_qvel_trace[
+                i, substep_onsets
+            ]  # could overwrite previous substep onsets for the same pitch in the same step
 
         return (
             self.get_obs(env_obs, song_obs),
@@ -96,7 +102,7 @@ class Environment:
                 active_fingers=active_fingers,
                 active_keys=fingers_to_keys,
                 new_onsets=new_onsets,
-                piano_qvel=piano_qvel,
+                onset_qvel=onset_qvel,
             ),
             truncated,
         )
@@ -111,7 +117,7 @@ class Environment:
         active_fingers: np.ndarray,
         active_keys: np.ndarray,
         new_onsets: np.ndarray,
-        piano_qvel: np.ndarray,
+        onset_qvel: np.ndarray,
     ):
         # key press reward
         key_should_be_pressed = np.where(piano_goal_state == 1)[0]
@@ -210,14 +216,10 @@ class Environment:
                 dynamics_errors = []
 
                 for pitch in onset_pitches:
-                    low = max(
-                        0, self.step_count - Song.ONSET_TOLERANCE
-                    )
+                    low = max(0, self.step_count - Song.ONSET_TOLERANCE)
                     high = min(
                         self.current_song.onset_velocity_data.shape[0],
-                        self.step_count
-                        + Song.ONSET_TOLERANCE
-                        + 1,
+                        self.step_count + Song.ONSET_TOLERANCE + 1,
                     )
                     window = self.current_song.onset_velocity_data[low:high, pitch]
                     nonzero = np.nonzero(window)[0]
@@ -227,7 +229,7 @@ class Environment:
 
                     target_velocity = window[nonzero[0]]
                     achieved_velocity = PianoAudio.compute_velocity_norm(
-                        float(piano_qvel[pitch])
+                        float(onset_qvel[pitch])
                     )
                     dynamics_errors.append(abs(target_velocity - achieved_velocity))
 

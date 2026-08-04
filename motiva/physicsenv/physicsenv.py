@@ -133,11 +133,21 @@ class PhysicsEnv:
 
         # pd position control
         self.data.ctrl[:] = scaled_action
+        
+        piano_qpos_trace = np.zeros((self.physics_steps_per_env_step, len(self.piano_joint_ids)), dtype=np.float32)
+        piano_qvel_trace = np.zeros((self.physics_steps_per_env_step, len(self.piano_joint_ids)), dtype=np.float32)
 
-        for _ in range(self.physics_steps_per_env_step):
+        for i in range(self.physics_steps_per_env_step):
             mujoco.mj_step(self.model, self.data)
+            
+            piano_qpos_trace[i] = helpers.rescale(
+                self.data.qpos[self.piano_joint_ids],
+                self.piano_scale,
+                self.piano_offset
+            )
+            piano_qvel_trace[i] = self.data.qvel[self.piano_joint_ids]
 
-        return self.get_obs()
+        return self.get_obs(), piano_qpos_trace, piano_qvel_trace
 
     def get_obs(self):
         # qpos -> all joint positions (piano keys + each hand)
