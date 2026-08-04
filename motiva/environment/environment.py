@@ -15,6 +15,7 @@ class Environment:
         use_fingering_labels: bool,
         use_dynamics_data: bool,
         should_render: bool,
+        never_play_audio: bool,
         seed: int,
     ):
         self.physicsenv = PhysicsEnv(seed=seed)
@@ -24,7 +25,7 @@ class Environment:
         self.use_fingering_labels = use_fingering_labels
         self.use_dynamics_data = use_dynamics_data
         self.should_render = should_render
-        self.piano_audio = None
+        self.piano_audio = PianoAudio(never_play_audio=never_play_audio)
 
         if should_render:
             self.physicsenv.render()
@@ -39,12 +40,12 @@ class Environment:
     ):
         self.current_song = song if song is not None else self.rng.choice(self.songs)
 
-        self.piano_audio = PianoAudio(
+        self.piano_audio.reset(
             play_audio=play_audio,
             record_midi=record_midi,
             save_midi=save_midi,
-            midi_file=midi_file,
-        )
+            midi_file=midi_file
+        )    
 
         self.physicsenv.reset()
         self.step_count = 0
@@ -60,8 +61,7 @@ class Environment:
         return self.get_obs(env_obs, song_obs)
 
     def save_piano_audio(self):
-        if self.piano_audio is not None:
-            return self.piano_audio.save_and_close()
+        return self.piano_audio.save_and_close()
 
     def step(self, action: np.ndarray):
         self.step_count += 1
@@ -82,12 +82,11 @@ class Environment:
 
         piano_qvel = self.physicsenv.data.qvel[self.physicsenv.piano_joint_ids]
 
-        if self.piano_audio is not None:
-            new_onsets = self.piano_audio.update(
-                env_obs[0],
-                piano_qvel,
-                episode_time,
-            )
+        new_onsets = self.piano_audio.update(
+            env_obs[0],
+            piano_qvel,
+            episode_time,
+        )
 
         return (
             self.get_obs(env_obs, song_obs),

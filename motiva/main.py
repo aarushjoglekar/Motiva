@@ -21,7 +21,7 @@ SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = True
+TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
@@ -356,6 +356,7 @@ with Environment(
     use_fingering_labels=USE_FINGERING_LABELS,
     use_dynamics_data=USE_DYNAMICS_DATA,
     should_render=(not TRAINING),
+    never_play_audio=TRAINING,
     seed=SEED,
 ) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
