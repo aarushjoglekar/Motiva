@@ -7,7 +7,7 @@ import mido
 class PianoAudio:
     NOTES_BEFORE_A1 = 21
     PRESS_THRESHOLD = 0.75
-    MAX_QVEL = 3.3
+    MAX_QVEL = 4.5
     MIN_AUDIO_VEL = 1
     MAX_AUDIO_VEL = 127
     GAMMA = 0.5
@@ -110,5 +110,5 @@ class PianoAudio:
             return self.mid
 
     @staticmethod
-    def compute_velocity_norm(q_vel: float):
+    def compute_velocity_norm(q_vel: float | np.ndarray):
         return np.clip(np.abs(q_vel) / PianoAudio.MAX_QVEL, 0.0, 1.0)

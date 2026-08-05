@@ -4,10 +4,13 @@ import numpy as np
 from physicsenv import constants
 from helpers import helpers
 from music.song import Song
+from music.pianoaudio import PianoAudio
 
 
 class PhysicsEnv:
-    def __init__(self, seed: int):
+    def __init__(self, seed: int, include_dynamics_data: bool):
+        self.include_dynamics_data = include_dynamics_data
+        
         # instantiation
         self.model, self.data, piano_y_min, piano_y_max, rh_forearm_id, lh_forearm_id = self.initialize_models()
         self.viewer = None
@@ -147,13 +150,13 @@ class PhysicsEnv:
             )
             piano_qvel_trace[i] = self.data.qvel[self.piano_joint_ids]
 
-        return self.get_obs(), piano_qpos_trace, piano_qvel_trace
+        return self.get_obs(piano_qvel_trace=piano_qvel_trace), piano_qpos_trace, piano_qvel_trace
 
-    def get_obs(self):
+    def get_obs(self, piano_qvel_trace: np.ndarray | None):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
 
-        return (
+        obs = (
             helpers.rescale(
                 self.data.qpos[self.piano_joint_ids],
                 self.piano_scale,
@@ -170,6 +173,23 @@ class PhysicsEnv:
                 self.finger_site_offset,
             ),
         )
+        
+        # if self.include_dynamics_data:
+        #     if piano_qvel_trace is None:
+        #         piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
+        #     else:
+        #         piano_qvel_obs = PianoAudio.compute_velocity_norm(
+        #             np.abs(piano_qvel_trace).max(axis=0)
+        #         )
+        #     obs = obs + (piano_qvel_obs,)
+            
+        if self.include_dynamics_data:
+            velocities = np.zeros((len(self.finger_site_ids), 6))
+            for i, finger_site_id in enumerate(self.finger_site_ids):
+                mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, finger_site_id, velocities[i], 0)
+            obs += (velocities.ravel(),)
+        
+        return obs
 
     def render(self):
         if self.viewer is None:

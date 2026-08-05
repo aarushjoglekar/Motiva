@@ -18,7 +18,7 @@ class Environment:
         never_play_audio: bool,
         seed: int,
     ):
-        self.physicsenv = PhysicsEnv(seed=seed)
+        self.physicsenv = PhysicsEnv(seed=seed, include_dynamics_data=use_dynamics_data)
         self.rng = random.Random(seed)
 
         self.songs = songs
@@ -51,7 +51,7 @@ class Environment:
         self.step_count = 0
         self.start_time = time.perf_counter_ns()
 
-        env_obs = self.physicsenv.get_obs()
+        env_obs = self.physicsenv.get_obs(piano_qvel_trace=None)
         song_obs = self.current_song.sample_at(
             time=0,
             include_fingering_data=self.use_fingering_labels,
@@ -254,7 +254,7 @@ class Environment:
         return self.physicsenv.model.nu
 
     def num_observations(self):
-        env_obs = self.physicsenv.get_obs()
+        env_obs = self.physicsenv.get_obs(piano_qvel_trace=None)
         song_obs = self.songs[0].sample_at(
             time=0,
             include_fingering_data=self.use_fingering_labels,
