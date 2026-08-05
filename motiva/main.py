@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "dynamics/level_1/payphone_wiz_khalifa_observation_simple"
+MODEL_NAME = "dynamics/level_1/better_hyperparams/payphone_wiz_khalifa_key_vel_obs"
 SEED = 42
 DISABLE_CUDA = False
 

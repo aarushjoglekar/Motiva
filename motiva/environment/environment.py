@@ -237,8 +237,8 @@ class Environment:
                     dynamics_reward = helpers.proximity_reward(
                         np.array(dynamics_errors),
                         lower=0,
-                        upper=0.2,
-                        margin=0.65,
+                        upper=0.05,
+                        margin=0.5,
                         value_at_margin=0.1,
                     ).mean()
 
