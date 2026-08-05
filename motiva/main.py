@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "dynamics/level_1/better_hyperparams/payphone_wiz_khalifa_key_vel_obs"
+MODEL_NAME = "dynamics/level_1/better_hyperparams/payphone_wiz_khalifa_no_obs"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = True
+TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False

@@ -174,14 +174,14 @@ class PhysicsEnv:
             ),
         )
         
-        if self.include_dynamics_data:
-            if piano_qvel_trace is None:
-                piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
-            else:
-                piano_qvel_obs = PianoAudio.compute_velocity_norm(
-                    np.abs(piano_qvel_trace).max(axis=0)
-                )
-            obs = obs + (piano_qvel_obs,)
+        # if self.include_dynamics_data:
+        #     if piano_qvel_trace is None:
+        #         piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
+        #     else:
+        #         piano_qvel_obs = PianoAudio.compute_velocity_norm(
+        #             np.abs(piano_qvel_trace).max(axis=0)
+        #         )
+        #     obs = obs + (piano_qvel_obs,)
             
         # if self.include_dynamics_data:
         #     velocities = np.zeros((len(self.finger_site_ids), 6))
