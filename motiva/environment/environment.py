@@ -48,6 +48,9 @@ class Environment:
         )
 
         self.physicsenv.reset()
+
+        self.used_onset_targets = set()
+
         self.step_count = 0
         self.start_time = time.perf_counter_ns()
 
@@ -224,10 +227,24 @@ class Environment:
                     window = self.current_song.onset_velocity_data[low:high, pitch]
                     nonzero = np.nonzero(window)[0]
 
-                    if len(nonzero) == 0:
-                        continue  # no nearby ground-truth onset
+                    best_index_offset = None
+                    best_dist = Song.ONSET_TOLERANCE + 1
 
-                    target_velocity = window[nonzero[0]]
+                    for index_offset in nonzero:
+                        timestep = low + index_offset
+
+                        if (pitch, timestep) in self.used_onset_targets:
+                            continue
+
+                        dist = abs(timestep - self.step_count)
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_index_offset = index_offset
+
+                    if best_index_offset is None:
+                        continue
+
+                    target_velocity = window[best_index_offset]
                     achieved_velocity = PianoAudio.compute_velocity_norm(
                         float(onset_qvel[pitch])
                     )
@@ -242,7 +259,7 @@ class Environment:
                         margin=0.4,
                         value_at_margin=0.1,
                     ).mean()
-                    
+
                     # print("Reward: ", dynamics_reward)
 
         return (
