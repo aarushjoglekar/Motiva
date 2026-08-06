@@ -232,15 +232,18 @@ class Environment:
                         float(onset_qvel[pitch])
                     )
                     dynamics_errors.append(abs(target_velocity - achieved_velocity))
+                    # print(f"Achieved {round(127 * achieved_velocity)} || Error: {dynamics_errors[-1]}")
 
                 if len(dynamics_errors) > 0:
                     dynamics_reward = helpers.proximity_reward(
                         np.array(dynamics_errors),
                         lower=0,
-                        upper=0.01,
-                        margin=0.1,
+                        upper=0.04,
+                        margin=0.4,
                         value_at_margin=0.1,
                     ).mean()
+                    
+                    # print("Reward: ", dynamics_reward)
 
         return (
             key_press_reward
