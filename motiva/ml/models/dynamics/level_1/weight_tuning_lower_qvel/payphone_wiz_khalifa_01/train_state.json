@@ -4,8 +4,8 @@
   ],
   "train_episodes": 6436,
   "num_steps": 5000000,
-  "total_train_time": 39449.090397774125,
-  "total_loop_time": 40219.595607507974,
+  "total_train_time": 39786.000477541704,
+  "total_loop_time": 40555.05691811,
   "eval_history": {
     "payphone_wiz_khalifa": {
       "steps": [
