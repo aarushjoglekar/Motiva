@@ -243,6 +243,9 @@ class Environment:
 
                     if best_index_offset is None:
                         continue
+                    
+                    best_timestep = low + best_index_offset
+                    self.used_onset_targets.add((pitch, best_timestep))
 
                     target_velocity = window[best_index_offset]
                     achieved_velocity = PianoAudio.compute_velocity_norm(
