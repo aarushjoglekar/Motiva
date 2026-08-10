@@ -4,7 +4,6 @@ import numpy as np
 from physicsenv import constants
 from helpers import helpers
 from music.song import Song
-from music.pianoaudio import PianoAudio
 
 
 class PhysicsEnv:
