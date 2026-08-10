@@ -6,13 +6,14 @@ import mido
 
 class PianoAudio:
     NOTES_BEFORE_A1 = 21
-    PRESS_THRESHOLD = 0.75
     MAX_QVEL = 4.5
     MIN_AUDIO_VEL = 1
     MAX_AUDIO_VEL = 127
     GAMMA = 0.5
 
-    def __init__(self, never_play_audio: bool):
+    def __init__(self, never_play_audio: bool, press_thresholds: np.ndarray):
+        self.press_thresholds = press_thresholds
+
         if not never_play_audio:
             DIR = os.path.dirname(os.path.abspath(__file__))
             self.fluidsynth = fluidsynth.Synth()
@@ -44,7 +45,7 @@ class PianoAudio:
     def update(
         self, piano_qpos: np.ndarray, piano_qvel: np.ndarray, episode_time: float
     ):
-        currently_pressed = piano_qpos > PianoAudio.PRESS_THRESHOLD
+        currently_pressed = piano_qpos > self.press_thresholds
         new_onsets = currently_pressed & ~self.key_pressed
         new_offsets = ~currently_pressed & self.key_pressed
 

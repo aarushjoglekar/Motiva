@@ -25,7 +25,10 @@ class Environment:
         self.use_fingering_labels = use_fingering_labels
         self.use_dynamics_data = use_dynamics_data
         self.should_render = should_render
-        self.piano_audio = PianoAudio(never_play_audio=never_play_audio)
+        self.piano_audio = PianoAudio(
+            never_play_audio=never_play_audio,
+            press_thresholds=self.physicsenv.piano_press_thresholds,
+        )
 
         if should_render:
             self.physicsenv.render()
@@ -138,9 +141,8 @@ class Environment:
             ).mean()
         )
 
-        key_is_sounding = piano_actual_state >= PianoAudio.PRESS_THRESHOLD
         no_false_positive_reward = 0.5 * (
-            1 - np.any(key_is_sounding & (piano_goal_state == 0))
+            1 - np.any(self.piano_audio.key_pressed & (piano_goal_state == 0))
         )
 
         key_press_reward = accurate_key_presses + no_false_positive_reward
@@ -243,7 +245,7 @@ class Environment:
 
                     if best_index_offset is None:
                         continue
-                    
+
                     best_timestep = low + best_index_offset
                     self.used_onset_targets.add((pitch, best_timestep))
 

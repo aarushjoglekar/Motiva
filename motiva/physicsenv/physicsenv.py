@@ -5,15 +5,16 @@ from physicsenv import constants
 from helpers import helpers
 from music.song import Song
 
-
 class PhysicsEnv:
+    PRESS_ANGLE_DEG = 0.5
+    
     def __init__(self, seed: int, include_dynamics_data: bool):
         self.include_dynamics_data = include_dynamics_data
         
         # instantiation
         self.model, self.data, piano_y_min, piano_y_max, rh_forearm_id, lh_forearm_id = self.initialize_models()
         self.viewer = None
-                
+        
         # forearm geom ids
         self.rh_forearm_geom_ids = set(range(
             self.model.body_geomadr[rh_forearm_id],
@@ -116,6 +117,14 @@ class PhysicsEnv:
             np.zeros(len(finger_min) * len(self.finger_site_ids)) - 1,
             np.ones(len(finger_max) * len(self.finger_site_ids)),
         )
+        
+        # piano press thresholds
+        joint_range_widths = (
+            self.model.jnt_range[self.piano_joint_ids, 1]
+            - self.model.jnt_range[self.piano_joint_ids, 0]
+        )
+        normalized_press_margin = 2 * np.radians(PhysicsEnv.PRESS_ANGLE_DEG) / joint_range_widths
+        self.piano_press_thresholds = 1.0 - normalized_press_margin
 
         # physics steps per env step
         self.physics_steps_per_env_step = round(
