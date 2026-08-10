@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "dynamics/level_1/weight_tuning_lower_qvel/payphone_wiz_khalifa_03"
+MODEL_NAME = "dynamics/level_1/payphone_wiz_khalifa"
 SEED = 42
 DISABLE_CUDA = False
 
 # TRAINING SETTINGS
-TRAINING = False
+TRAINING = True
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
@@ -154,15 +154,31 @@ def run_training(
     with open(train_state_path, "w") as f:
         json.dump(train_state, f, indent=2)
 
-    plt.figure()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     for song_key, history in eval_history.items():
-        plt.plot(history["steps"], history["f1"], label=song_key)
-    plt.xlabel("Steps")
-    plt.ylabel("F1 Score")
-    plt.title("F1 Score over Training")
-    plt.legend()
-    plt.savefig(os.path.join(model_path, "f1_history.png"))
-    plt.close()
+        ax1.plot(history["steps"], history["f1"], label=song_key)
+        
+        valid = [
+            (step, dynamics_score) for step, dynamics_score in zip(history["steps"], history["dynamics_score"])
+            if dynamics_score is not None
+        ]
+        if len(valid) != 0:
+            dyn_steps, dyn_scores = zip(*valid)
+            ax2.plot(dyn_steps, dyn_scores, label=song_key)
+        
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("F1 Score")
+    ax1.set_title("F1 Score over Training")
+    ax1.legend()
+
+    ax2.set_xlabel("Steps")
+    ax2.set_ylabel("Dynamics Score")
+    ax2.set_title("Dynamics Score over Training")
+    ax2.legend()
+    
+    fig.tight_layout()
+    fig.savefig(os.path.join(model_path, "eval_history.png"))
+    plt.close(fig)
 
     model.save()
 
