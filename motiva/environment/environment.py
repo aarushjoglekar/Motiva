@@ -272,7 +272,7 @@ class Environment:
             + finger_dist_reward
             - 0.005 * energy_penalty
             + forearm_no_collision_reward
-            + 0.5 * dynamics_reward
+            + 0.25 * dynamics_reward
         )
 
     def num_actions(self):

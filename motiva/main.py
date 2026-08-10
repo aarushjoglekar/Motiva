@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "dynamics/level_1/payphone_wiz_khalifa"
+MODEL_NAME = "dynamics/twinkle_twinkle_playground/twinkle_twinkle_little_star"
 SEED = 42
 DISABLE_CUDA = False
 
@@ -27,11 +27,11 @@ VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
 USE_DYNAMICS_DATA = True
 USE_FINGERING_LABELS = True
-TRAIN_SONGS = [Song.from_txt(song=Song.PAYPHONE_WIZ_KHALIFA)]
+TRAIN_SONGS = [Song.from_txt(song=Song.TWINKLE_TWINKLE_LITTLE_STAR)]
 
 # TESTING SETTINGS
 SAVE_TO_MIDI_TEST = False
-TEST_SONG = Song.from_txt(Song.PAYPHONE_WIZ_KHALIFA)
+TEST_SONG = Song.from_txt(Song.TWINKLE_TWINKLE_LITTLE_STAR)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
