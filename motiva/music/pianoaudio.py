@@ -7,7 +7,7 @@ import mido
 class PianoAudio:
     NOTES_BEFORE_A1 = 21
     PRESS_THRESHOLD = 0.75
-    MAX_QVEL = 3
+    MAX_QVEL = 4
     MIN_AUDIO_VEL = 1
     MAX_AUDIO_VEL = 127
     GAMMA = 0.5
