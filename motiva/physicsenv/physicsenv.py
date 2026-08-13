@@ -2,28 +2,43 @@ import mujoco
 import os
 import numpy as np
 from physicsenv import constants
+from physicsenv.motorized_joint_group import MotorizedJointGroup
 from helpers import helpers
 from music.song import Song
 
+
 class PhysicsEnv:
     PRESS_ANGLE_DEG = 0.5
-    
+
     def __init__(self, seed: int, include_dynamics_data: bool):
         self.include_dynamics_data = include_dynamics_data
-        
+
         # instantiation
-        self.model, self.data, piano_y_min, piano_y_max, rh_forearm_id, lh_forearm_id = self.initialize_models()
+        (
+            self.model,
+            self.data,
+            piano_y_min,
+            piano_y_max,
+            rh_forearm_id,
+            lh_forearm_id,
+        ) = self.initialize_models()
         self.viewer = None
-        
+
         # forearm geom ids
-        self.rh_forearm_geom_ids = set(range(
-            self.model.body_geomadr[rh_forearm_id],
-            self.model.body_geomadr[rh_forearm_id] + self.model.body_geomnum[rh_forearm_id]
-        ))
-        self.lh_forearm_geom_ids = set(range(
-            self.model.body_geomadr[lh_forearm_id],
-            self.model.body_geomadr[lh_forearm_id] + self.model.body_geomnum[lh_forearm_id]
-        ))
+        self.rh_forearm_geom_ids = set(
+            range(
+                self.model.body_geomadr[rh_forearm_id],
+                self.model.body_geomadr[rh_forearm_id]
+                + self.model.body_geomnum[rh_forearm_id],
+            )
+        )
+        self.lh_forearm_geom_ids = set(
+            range(
+                self.model.body_geomadr[lh_forearm_id],
+                self.model.body_geomadr[lh_forearm_id]
+                + self.model.body_geomnum[lh_forearm_id],
+            )
+        )
 
         # ty joint ides
         self.ry_joint_id = mujoco.mj_name2id(
@@ -117,20 +132,35 @@ class PhysicsEnv:
             np.zeros(len(finger_min) * len(self.finger_site_ids)) - 1,
             np.ones(len(finger_max) * len(self.finger_site_ids)),
         )
-        
+
         # piano press thresholds
         joint_range_widths = (
             self.model.jnt_range[self.piano_joint_ids, 1]
             - self.model.jnt_range[self.piano_joint_ids, 0]
         )
-        normalized_press_margin = 2 * np.radians(PhysicsEnv.PRESS_ANGLE_DEG) / joint_range_widths
+        normalized_press_margin = (
+            2 * np.radians(PhysicsEnv.PRESS_ANGLE_DEG) / joint_range_widths
+        )
         self.piano_press_thresholds = 1.0 - normalized_press_margin
+
+        # motorized joint group
+        self.motorized_joints = MotorizedJointGroup(
+            model=self.model,
+            data=self.data,
+            actuator_names=[
+                f"{hand}_A_{actuated_joint_name}"
+                for hand in constants.HANDS
+                for actuated_joint_name in constants.ACTUATED_JOINT_NAMES
+            ],
+            kp=constants.ACTUATED_JOINT_KP * len(constants.HANDS),
+            damping=constants.ACTUATED_JOINT_DAMPING * len(constants.HANDS),
+        )
 
         # physics steps per env step
         self.physics_steps_per_env_step = round(
             (1 / Song.RESOLUTION) / self.model.opt.timestep
         )
-        
+
         # random state
         self.rng = np.random.RandomState(seed)
 
@@ -142,23 +172,31 @@ class PhysicsEnv:
             self.action_highs - self.action_lows
         )
 
-        # pd position control
-        self.data.ctrl[:] = scaled_action
-        
-        piano_qpos_trace = np.zeros((self.physics_steps_per_env_step, len(self.piano_joint_ids)), dtype=np.float32)
-        piano_qvel_trace = np.zeros((self.physics_steps_per_env_step, len(self.piano_joint_ids)), dtype=np.float32)
+        piano_qpos_trace = np.zeros(
+            (self.physics_steps_per_env_step, len(self.piano_joint_ids)),
+            dtype=np.float32,
+        )
+        piano_qvel_trace = np.zeros(
+            (self.physics_steps_per_env_step, len(self.piano_joint_ids)),
+            dtype=np.float32,
+        )
 
         for i in range(self.physics_steps_per_env_step):
+            self.motorized_joints.step(scaled_action)
             mujoco.mj_step(self.model, self.data)
-            
+
             piano_qpos_trace[i] = helpers.rescale(
                 self.data.qpos[self.piano_joint_ids],
                 self.piano_scale,
-                self.piano_offset
+                self.piano_offset,
             )
             piano_qvel_trace[i] = self.data.qvel[self.piano_joint_ids]
 
-        return self.get_obs(piano_qvel_trace=piano_qvel_trace), piano_qpos_trace, piano_qvel_trace
+        return (
+            self.get_obs(piano_qvel_trace=piano_qvel_trace),
+            piano_qpos_trace,
+            piano_qvel_trace,
+        )
 
     def get_obs(self, piano_qvel_trace: np.ndarray | None):
         # qpos -> all joint positions (piano keys + each hand)
@@ -181,7 +219,7 @@ class PhysicsEnv:
                 self.finger_site_offset,
             ),
         )
-        
+
         # if self.include_dynamics_data:
         #     if piano_qvel_trace is None:
         #         piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
@@ -190,13 +228,13 @@ class PhysicsEnv:
         #             np.abs(piano_qvel_trace).max(axis=0)
         #         )
         #     obs = obs + (piano_qvel_obs,)
-            
+
         # if self.include_dynamics_data:
         #     velocities = np.zeros((len(self.finger_site_ids), 6))
         #     for i, finger_site_id in enumerate(self.finger_site_ids):
         #         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, finger_site_id, velocities[i], 0)
         #     obs += (velocities.ravel(),)
-        
+
         return obs
 
     def render(self):

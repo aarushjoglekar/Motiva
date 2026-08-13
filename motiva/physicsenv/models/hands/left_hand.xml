@@ -8,6 +8,7 @@
       <mesh scale="0.001 0.001 0.001"/>
       <joint axis="1 0 0" damping="0.05" armature="0.0002" frictionloss="0.01"/>
       <position forcerange="-1 1"/>
+      <motor ctrllimited="false"/>
 
       <default class="lh_wrist">
         <joint damping="0.5"/>
@@ -329,29 +330,29 @@
   </tendon>
 
   <actuator>
-    <position name="lh_A_WRJ2" joint="lh_WRJ2" class="lh_wrist_y"/>
-    <position name="lh_A_WRJ1" joint="lh_WRJ1" class="lh_wrist_x"/>
-    <position name="lh_A_THJ5" joint="lh_THJ5" class="lh_thbase"/>
-    <position name="lh_A_THJ4" joint="lh_THJ4" class="lh_thproximal"/>
-    <position name="lh_A_THJ3" joint="lh_THJ3" class="lh_thhub"/>
-    <position name="lh_A_THJ2" joint="lh_THJ2" class="lh_thmiddle"/>
-    <position name="lh_A_THJ1" joint="lh_THJ1" class="lh_thdistal"/>
-    <position name="lh_A_FFJ4" joint="lh_FFJ4" class="lh_knuckle"/>
-    <position name="lh_A_FFJ3" joint="lh_FFJ3" class="lh_proximal"/>
-    <position name="lh_A_FFJ0" tendon="lh_FFJ0" class="lh_middle_distal"/>
-    <position name="lh_A_MFJ4" joint="lh_MFJ4" class="lh_knuckle"/>
-    <position name="lh_A_MFJ3" joint="lh_MFJ3" class="lh_proximal"/>
-    <position name="lh_A_MFJ0" tendon="lh_MFJ0" class="lh_middle_distal"/>
-    <position name="lh_A_RFJ4" joint="lh_RFJ4" class="lh_knuckle"/>
-    <position name="lh_A_RFJ3" joint="lh_RFJ3" class="lh_proximal"/>
-    <position name="lh_A_RFJ0" tendon="lh_RFJ0" class="lh_middle_distal"/>
-    <position name="lh_A_LFJ5" joint="lh_LFJ5" class="lh_metacarpal"/>
-    <position name="lh_A_LFJ4" joint="lh_LFJ4" class="lh_knuckle"/>
-    <position name="lh_A_LFJ3" joint="lh_LFJ3" class="lh_proximal"/>
-    <position name="lh_A_LFJ0" tendon="lh_LFJ0" class="lh_middle_distal"/>
-    <position name="lh_A_forearm_tx"   joint="lh_forearm_tx"   kp="100" damping="45" forcerange="-50 50"/>
-    <position name="lh_A_forearm_ty"   joint="lh_forearm_ty"   kp="300" damping="45" forcerange="-50 50"/>
-    <position name="lh_A_forearm_tz"   joint="lh_forearm_tz" forcerange="-30 30" kp="300" damping="40"/>
-    <position name="lh_A_forearm_roll" joint="lh_forearm_roll" kp="300" forcerange="-20 20"/>
+    <motor name="lh_A_WRJ2" joint="lh_WRJ2" class="lh_wrist_y"/>
+    <motor name="lh_A_WRJ1" joint="lh_WRJ1" class="lh_wrist_x"/>
+    <motor name="lh_A_THJ5" joint="lh_THJ5" class="lh_thbase"/>
+    <motor name="lh_A_THJ4" joint="lh_THJ4" class="lh_thproximal"/>
+    <motor name="lh_A_THJ3" joint="lh_THJ3" class="lh_thhub"/>
+    <motor name="lh_A_THJ2" joint="lh_THJ2" class="lh_thmiddle"/>
+    <motor name="lh_A_THJ1" joint="lh_THJ1" class="lh_thdistal"/>
+    <motor name="lh_A_FFJ4" joint="lh_FFJ4" class="lh_knuckle"/>
+    <motor name="lh_A_FFJ3" joint="lh_FFJ3" class="lh_proximal"/>
+    <motor name="lh_A_FFJ0" tendon="lh_FFJ0" class="lh_middle_distal"/>
+    <motor name="lh_A_MFJ4" joint="lh_MFJ4" class="lh_knuckle"/>
+    <motor name="lh_A_MFJ3" joint="lh_MFJ3" class="lh_proximal"/>
+    <motor name="lh_A_MFJ0" tendon="lh_MFJ0" class="lh_middle_distal"/>
+    <motor name="lh_A_RFJ4" joint="lh_RFJ4" class="lh_knuckle"/>
+    <motor name="lh_A_RFJ3" joint="lh_RFJ3" class="lh_proximal"/>
+    <motor name="lh_A_RFJ0" tendon="lh_RFJ0" class="lh_middle_distal"/>
+    <motor name="lh_A_LFJ5" joint="lh_LFJ5" class="lh_metacarpal"/>
+    <motor name="lh_A_LFJ4" joint="lh_LFJ4" class="lh_knuckle"/>
+    <motor name="lh_A_LFJ3" joint="lh_LFJ3" class="lh_proximal"/>
+    <motor name="lh_A_LFJ0" tendon="lh_LFJ0" class="lh_middle_distal"/>
+    <motor name="lh_A_forearm_tx"   joint="lh_forearm_tx" forcerange="-50 50"/>
+    <motor name="lh_A_forearm_ty"   joint="lh_forearm_ty" forcerange="-50 50"/>
+    <motor name="lh_A_forearm_tz"   joint="lh_forearm_tz" forcerange="-30 30"/>
+    <motor name="lh_A_forearm_roll" joint="lh_forearm_roll" forcerange="-20 20"/>
   </actuator>
 </mujoco>
