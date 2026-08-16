@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "dynamics/level_1/payphone_wiz_khalifa"
+MODEL_NAME = "dynamics/payphone_wiz_khalifa"
 SEED = 42
 DISABLE_CUDA = False
 
@@ -377,6 +377,7 @@ with Environment(
 ) as env:
     DIR = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(DIR, f"ml/models/{MODEL_NAME}")
+    print(model_path)
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() and not DISABLE_CUDA else "cpu"
