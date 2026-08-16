@@ -1,26 +1,26 @@
 import numpy as np
+from physicsenv import constants
+from physicsenv.control_type import ControlType
 import mujoco
 
 
 class MotorizedJointGroup:
-    def __init__(
-        self,
-        model: mujoco.MjModel,
-        data: mujoco.MjData,
-        actuator_names: list[str],
-        kp: list[float],
-        damping: list[float],
-    ):
+    def __init__(self, model: mujoco.MjModel, data: mujoco.MjData, control_type: int):
         self.model = model
         self.data = data
+        self.control_type = control_type
 
         self.actuator_ids = np.array(
             [
                 mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator_name)
-                for actuator_name in actuator_names
+                for actuator_name in [
+                    f"{hand}_A_{actuated_joint_name}"
+                    for hand in constants.HANDS
+                    for actuated_joint_name in constants.ACTUATED_JOINT_NAMES
+                ]
             ]
         )
-        self.length = len(actuator_names)
+        self.length = len(self.actuator_ids)
 
         transmission_type = model.actuator_trntype[self.actuator_ids]
         transmission_ids = model.actuator_trnid[self.actuator_ids, 0]
@@ -33,9 +33,6 @@ class MotorizedJointGroup:
         self.qvel_adr = np.zeros(self.length, dtype=int)
         self.qpos_adr[~self.is_tendon] = model.jnt_qposadr[joint_ids]
         self.qvel_adr[~self.is_tendon] = model.jnt_dofadr[joint_ids]
-
-        self.kp = np.array(kp, dtype=np.float64)
-        self.damping = np.array(damping, dtype=np.float64)
 
         self.forcerange = model.actuator_forcerange[self.actuator_ids]
 
@@ -53,7 +50,13 @@ class MotorizedJointGroup:
         position[self.is_tendon] = self.data.ten_length[self.tendon_ids]
         velocity[self.is_tendon] = self.data.ten_velocity[self.tendon_ids]
 
-        force = self.kp * (self.target - position) - self.damping * velocity
-        force = np.clip(force, self.forcerange[:, 0], self.forcerange[:, 1])
+        if self.control_type == ControlType.POSITION_CONTROL:
+            force = (
+                constants.ACTUATED_JOINT_KP_POSITION * (self.target - position)
+                - constants.ACTUATED_JOINT_DAMPING_POSITION * velocity
+            )
+        elif self.control_type == ControlType.VELOCITY_CONTROL:
+            force = constants.ACTUATED_JOINT_KP_VELOCITY * (self.target - velocity)
 
+        force = np.clip(force, self.forcerange[:, 0], self.forcerange[:, 1])
         self.data.ctrl[self.actuator_ids] = force

@@ -1,5 +1,6 @@
 from music.song import Song
 from environment.environment import Environment
+from physicsenv.control_type import ControlType
 from ml.sac_droq import SAC_DROQ
 from ml.config import SAC_DROQ_DEFAULT_CONFIG
 from datetime import datetime
@@ -20,11 +21,13 @@ MODEL_NAME = "dynamics/payphone_wiz_khalifa"
 SEED = 42
 DISABLE_CUDA = False
 
+
 # TRAINING SETTINGS
 TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
+CONTROL_TYPE = ControlType.POSITION_CONTROL
 USE_DYNAMICS_DATA = True
 USE_FINGERING_LABELS = True
 TRAIN_SONGS = [Song.from_txt(song=Song.PAYPHONE_WIZ_KHALIFA)]
@@ -369,6 +372,7 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
 
 with Environment(
     songs=TRAIN_SONGS,
+    control_type=CONTROL_TYPE,
     use_fingering_labels=USE_FINGERING_LABELS,
     use_dynamics_data=USE_DYNAMICS_DATA,
     should_render=(not TRAINING),

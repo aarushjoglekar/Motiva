@@ -1,3 +1,5 @@
+import numpy as np
+
 JOINTS = [
     "forearm_tx",
     "forearm_ty",
@@ -75,7 +77,7 @@ ACTUATED_JOINT_NAMES = [
     "forearm_roll",
 ]
 
-ACTUATED_JOINT_KP = [
+ACTUATED_JOINT_KP_POSITION = np.array([
     10,
     8,
     0.4,
@@ -100,9 +102,9 @@ ACTUATED_JOINT_KP = [
     300,
     300,
     300,
-]
+] * len(HANDS), dtype=np.float64)
 
-ACTUATED_JOINT_DAMPING = [
+ACTUATED_JOINT_DAMPING_POSITION = np.array([
     0,
     0,
     0,
@@ -127,4 +129,31 @@ ACTUATED_JOINT_DAMPING = [
     45,
     40,
     0,
-]
+] * len(HANDS), dtype=np.float64)
+
+ACTUATED_JOINT_KP_VELOCITY = np.array([
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+] * len(HANDS), dtype=np.float64)

@@ -12,13 +12,18 @@ class Environment:
     def __init__(
         self,
         songs: list[Song],
+        control_type: int,
         use_fingering_labels: bool,
         use_dynamics_data: bool,
         should_render: bool,
         never_play_audio: bool,
         seed: int,
     ):
-        self.physicsenv = PhysicsEnv(seed=seed, include_dynamics_data=use_dynamics_data)
+        self.physicsenv = PhysicsEnv(
+            seed=seed,
+            control_type=control_type,
+            include_dynamics_data=use_dynamics_data,
+        )
         self.rng = random.Random(seed)
 
         self.songs = songs

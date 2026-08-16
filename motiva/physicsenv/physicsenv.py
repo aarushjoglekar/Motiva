@@ -10,7 +10,7 @@ from music.song import Song
 class PhysicsEnv:
     PRESS_ANGLE_DEG = 0.5
 
-    def __init__(self, seed: int, include_dynamics_data: bool):
+    def __init__(self, seed: int, control_type: int, include_dynamics_data: bool):
         self.include_dynamics_data = include_dynamics_data
 
         # instantiation
@@ -145,15 +145,7 @@ class PhysicsEnv:
 
         # motorized joint group
         self.motorized_joints = MotorizedJointGroup(
-            model=self.model,
-            data=self.data,
-            actuator_names=[
-                f"{hand}_A_{actuated_joint_name}"
-                for hand in constants.HANDS
-                for actuated_joint_name in constants.ACTUATED_JOINT_NAMES
-            ],
-            kp=constants.ACTUATED_JOINT_KP * len(constants.HANDS),
-            damping=constants.ACTUATED_JOINT_DAMPING * len(constants.HANDS),
+            model=self.model, data=self.data, control_type=control_type
         )
 
         # physics steps per env step
