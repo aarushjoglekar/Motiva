@@ -3,7 +3,6 @@ from physicsenv import constants
 from physicsenv.control_type import ControlType
 import mujoco
 
-
 class MotorizedJointGroup:
     def __init__(self, model: mujoco.MjModel, data: mujoco.MjData, control_type: int):
         self.model = model
@@ -56,7 +55,11 @@ class MotorizedJointGroup:
                 - constants.ACTUATED_JOINT_DAMPING_POSITION * velocity
             )
         elif self.control_type == ControlType.VELOCITY_CONTROL:
-            force = constants.ACTUATED_JOINT_KP_VELOCITY * (self.target - velocity)
+            force = (
+                constants.ACTUATED_JOINT_KP_VELOCITY * (self.target - velocity)
+                + constants.ACTUATED_JOINT_KV_VELOCITY * self.target
+                + constants.ACTUATED_JOINT_KS_VELOCITY * np.sign(self.target)
+            )
 
         force = np.clip(force, self.forcerange[:, 0], self.forcerange[:, 1])
         self.data.ctrl[self.actuator_ids] = force

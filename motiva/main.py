@@ -390,7 +390,7 @@ with Environment(
     model = SAC_DROQ(
         model_path=model_path,
         num_observations=env.num_observations(),
-        num_actions=env.num_actions(),
+        num_actions=env.physicsenv.num_actions(),
         actor_hidden_layer_size=SAC_DROQ_DEFAULT_CONFIG.actor_hidden_layer_size,
         actor_num_hidden_layers=SAC_DROQ_DEFAULT_CONFIG.actor_num_hidden_layers,
         critic_hidden_layer_size=SAC_DROQ_DEFAULT_CONFIG.critic_hidden_layer_size,
@@ -406,7 +406,7 @@ with Environment(
         updates_per_step=SAC_DROQ_DEFAULT_CONFIG.updates_per_step,
         sample_size=SAC_DROQ_DEFAULT_CONFIG.sample_size,
         replay_buffer_size=SAC_DROQ_DEFAULT_CONFIG.replay_buffer_size,
-        target_entropy=(-0.5 * env.num_actions()),
+        target_entropy=(-0.5 * env.physicsenv.num_actions()),
         discount_factor=SAC_DROQ_DEFAULT_CONFIG.discount_factor,
         tau=SAC_DROQ_DEFAULT_CONFIG.tau,
         device=device,

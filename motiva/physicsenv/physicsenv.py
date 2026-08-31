@@ -3,6 +3,7 @@ import os
 import numpy as np
 from physicsenv import constants
 from physicsenv.motorized_joint_group import MotorizedJointGroup
+from physicsenv.control_type import ControlType
 from helpers import helpers
 from music.song import Song
 
@@ -63,9 +64,13 @@ class PhysicsEnv:
         )
 
         # range of actions
-        self.action_lows = self.model.actuator_ctrlrange[:, 0]
-        self.action_highs = self.model.actuator_ctrlrange[:, 1]
-
+        if control_type == ControlType.POSITION_CONTROL:
+            self.action_lows = self.model.actuator_ctrlrange[:, 0]
+            self.action_highs = self.model.actuator_ctrlrange[:, 1]
+        elif control_type == ControlType.VELOCITY_CONTROL:
+            self.action_lows = constants.ACTUATED_JOINT_MAX_SPEEDS * -1
+            self.action_highs = constants.ACTUATED_JOINT_MAX_SPEEDS
+        
         # piano joint/site ids
         black_keys = {1, 4, 6, 9, 11}
 
@@ -249,6 +254,9 @@ class PhysicsEnv:
             )
 
         mujoco.mj_forward(self.model, self.data)
+
+    def num_actions(self):
+        return self.model.nu
 
     def viewer_running(self):
         return self.viewer is None or self.viewer.is_running()

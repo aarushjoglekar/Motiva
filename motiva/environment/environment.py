@@ -280,9 +280,6 @@ class Environment:
             + 0.25 * dynamics_reward
         )
 
-    def num_actions(self):
-        return self.physicsenv.model.nu
-
     def num_observations(self):
         env_obs = self.physicsenv.get_obs(piano_qvel_trace=None)
         song_obs = self.songs[0].sample_at(
