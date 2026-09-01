@@ -6,10 +6,7 @@ import mujoco
 import multiprocessing as mp
 from collections import deque
 
-CONTINUOUS_MOVEMENT = False
-DASHBOARD_HISTORY_LEN = 300
-
-def run_dashboard(joint_name, target_value, kp_value, data_queue, stop_event):
+def run_dashboard(joint_name, target_value, kp_value, data_queue, stop_event, dashboard_length):
     import matplotlib
 
     matplotlib.use("TkAgg")
@@ -46,9 +43,9 @@ def run_dashboard(joint_name, target_value, kp_value, data_queue, stop_event):
     target_box.on_submit(on_target_submit)
     kp_box.on_submit(on_kp_submit)
 
-    steps = deque(maxlen=DASHBOARD_HISTORY_LEN)
-    targets = deque(maxlen=DASHBOARD_HISTORY_LEN)
-    actuals = deque(maxlen=DASHBOARD_HISTORY_LEN)
+    steps = deque(maxlen=dashboard_length)
+    targets = deque(maxlen=dashboard_length)
+    actuals = deque(maxlen=dashboard_length)
 
     while plt.fignum_exists(fig.number):
         updated = False
@@ -68,7 +65,7 @@ def run_dashboard(joint_name, target_value, kp_value, data_queue, stop_event):
     stop_event.set()
 
 
-def tune_velocity_kp(joint_name: str, is_left_hand: bool):
+def tune_velocity_kp(joint_name: str, is_left_hand: bool, continuous_movement:bool=False, dashboard_length:int=300):
     print("Tuning joint:", joint_name)
     
     joint_index = None
@@ -125,7 +122,7 @@ def tune_velocity_kp(joint_name: str, is_left_hand: bool):
 
     dashboard_process = mp.Process(
         target=run_dashboard,
-        args=(joint_name, target_value, kp_value, data_queue, stop_event),
+        args=(joint_name, target_value, kp_value, data_queue, stop_event, dashboard_length),
         daemon=True,
     )
     dashboard_process.start()
@@ -152,7 +149,7 @@ def tune_velocity_kp(joint_name: str, is_left_hand: bool):
         joint_velocity = read_joint_velocity()
         data_queue.put((step, target_velocity, joint_velocity))
 
-        if CONTINUOUS_MOVEMENT:
+        if continuous_movement:
             recentered = False
             for qpos_adr, (range_lo, range_hi), center, margin in zip(
                 joint_qpos_adrs, joint_ranges, joint_centers, joint_edge_margins
