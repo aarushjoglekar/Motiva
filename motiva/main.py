@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "velocity_dynamics/twinkle_twinkle_little_star"
+MODEL_NAME = "velocity_dynamics/twinkle_twinkle_little_star_both_obs"
 SEED = 42
 DISABLE_CUDA = False
 

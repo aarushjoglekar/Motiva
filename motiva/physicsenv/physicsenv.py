@@ -6,7 +6,7 @@ from physicsenv.motorized_joint_group import MotorizedJointGroup
 from physicsenv.control_type import ControlType
 from helpers import helpers
 from music.song import Song
-
+from music.pianoaudio import PianoAudio
 
 class PhysicsEnv:
     PRESS_ANGLE_DEG = 0.5
@@ -217,20 +217,20 @@ class PhysicsEnv:
             ),
         )
 
-        # if self.include_dynamics_data:
-        #     if piano_qvel_trace is None:
-        #         piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
-        #     else:
-        #         piano_qvel_obs = PianoAudio.compute_velocity_norm(
-        #             np.abs(piano_qvel_trace).max(axis=0)
-        #         )
-        #     obs = obs + (piano_qvel_obs,)
+        if self.include_dynamics_data:
+            if piano_qvel_trace is None:
+                piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
+            else:
+                piano_qvel_obs = PianoAudio.compute_velocity_norm(
+                    np.abs(piano_qvel_trace).max(axis=0)
+                )
+            obs = obs + (piano_qvel_obs,)
 
-        # if self.include_dynamics_data:
-        #     velocities = np.zeros((len(self.finger_site_ids), 6))
-        #     for i, finger_site_id in enumerate(self.finger_site_ids):
-        #         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, finger_site_id, velocities[i], 0)
-        #     obs += (velocities.ravel(),)
+        if self.include_dynamics_data:
+            velocities = np.zeros((len(self.finger_site_ids), 6))
+            for i, finger_site_id in enumerate(self.finger_site_ids):
+                mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, finger_site_id, velocities[i], 0)
+            obs += (velocities.ravel(),)
 
         return obs
 
