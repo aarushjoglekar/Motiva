@@ -62,7 +62,7 @@ class Environment:
         self.step_count = 0
         self.start_time = time.perf_counter_ns()
 
-        env_obs = self.physicsenv.get_obs(piano_qvel_trace=None)
+        env_obs = self.physicsenv.get_obs(peak_piano_qvel=None)
         song_obs = self.current_song.sample_at(
             time=0,
             include_fingering_data=self.use_fingering_labels,
@@ -78,7 +78,7 @@ class Environment:
         self.step_count += 1
         episode_time = self.step_count / Song.RESOLUTION
 
-        env_obs, piano_qpos_trace, piano_qvel_trace = self.physicsenv.step(action)
+        env_obs, piano_qpos_trace, peak_piano_qvel = self.physicsenv.step(action)
 
         song_obs, fingers_to_keys, active_fingers, truncated = (
             self.current_song.sample_at(
@@ -96,14 +96,12 @@ class Environment:
 
         for i in range(piano_qpos_trace.shape[0]):
             substep_onsets = self.piano_audio.update(
-                piano_qpos_trace[i],
-                piano_qvel_trace[i],
-                episode_time,
+                piano_qpos=piano_qpos_trace[i],
+                peak_piano_qvel=peak_piano_qvel,
+                episode_time=episode_time,
             )
             new_onsets |= substep_onsets
-            onset_qvel[substep_onsets] = piano_qvel_trace[
-                i, substep_onsets
-            ]  # could overwrite previous substep onsets for the same pitch in the same step
+        onset_qvel[new_onsets] = peak_piano_qvel[new_onsets]
 
         return (
             self.get_obs(env_obs, song_obs),
@@ -259,7 +257,6 @@ class Environment:
                         float(onset_qvel[pitch])
                     )
                     dynamics_errors.append(abs(target_velocity - achieved_velocity))
-                    # print(f"Achieved {round(127 * achieved_velocity)} || Error: {dynamics_errors[-1]} || Vel: {onset_qvel[pitch]}")
 
                 if len(dynamics_errors) > 0:
                     dynamics_reward = helpers.proximity_reward(
@@ -270,8 +267,6 @@ class Environment:
                         value_at_margin=0.1,
                     ).mean()
 
-                    # print("Reward: ", dynamics_reward)
-
         return (
             key_press_reward
             + finger_dist_reward
@@ -281,7 +276,7 @@ class Environment:
         )
 
     def num_observations(self):
-        env_obs = self.physicsenv.get_obs(piano_qvel_trace=None)
+        env_obs = self.physicsenv.get_obs(peak_piano_qvel=None)
         song_obs = self.songs[0].sample_at(
             time=0,
             include_fingering_data=self.use_fingering_labels,

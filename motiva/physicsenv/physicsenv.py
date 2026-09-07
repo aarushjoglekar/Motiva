@@ -8,6 +8,7 @@ from helpers import helpers
 from music.song import Song
 from music.pianoaudio import PianoAudio
 
+
 class PhysicsEnv:
     PRESS_ANGLE_DEG = 0.5
 
@@ -70,7 +71,7 @@ class PhysicsEnv:
         elif control_type == ControlType.VELOCITY_CONTROL:
             self.action_lows = constants.ACTUATED_JOINT_MAX_SPEEDS * -1
             self.action_highs = constants.ACTUATED_JOINT_MAX_SPEEDS
-        
+
         # piano joint/site ids
         black_keys = {1, 4, 6, 9, 11}
 
@@ -189,13 +190,15 @@ class PhysicsEnv:
             )
             piano_qvel_trace[i] = self.data.qvel[self.piano_joint_ids]
 
+        peak_piano_qvel = np.maximum(piano_qvel_trace.max(axis=0), 0.0)
+
         return (
-            self.get_obs(piano_qvel_trace=piano_qvel_trace),
+            self.get_obs(peak_piano_qvel=peak_piano_qvel),
             piano_qpos_trace,
-            piano_qvel_trace,
+            peak_piano_qvel,
         )
 
-    def get_obs(self, piano_qvel_trace: np.ndarray | None):
+    def get_obs(self, peak_piano_qvel: np.ndarray | None):
         # qpos -> all joint positions (piano keys + each hand)
         # xpos -> forearm positions
 
@@ -218,18 +221,23 @@ class PhysicsEnv:
         )
 
         if self.include_dynamics_data:
-            if piano_qvel_trace is None:
+            if peak_piano_qvel is None:
                 piano_qvel_obs = np.zeros(len(self.piano_joint_ids), dtype=np.float32)
             else:
-                piano_qvel_obs = PianoAudio.compute_velocity_norm(
-                    np.abs(piano_qvel_trace).max(axis=0)
-                )
+                piano_qvel_obs = PianoAudio.compute_velocity_norm(peak_piano_qvel)
             obs = obs + (piano_qvel_obs,)
 
         if self.include_dynamics_data:
             velocities = np.zeros((len(self.finger_site_ids), 6))
             for i, finger_site_id in enumerate(self.finger_site_ids):
-                mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, finger_site_id, velocities[i], 0)
+                mujoco.mj_objectVelocity(
+                    self.model,
+                    self.data,
+                    mujoco.mjtObj.mjOBJ_SITE,
+                    finger_site_id,
+                    velocities[i],
+                    0,
+                )
             obs += (velocities.ravel(),)
 
         return obs

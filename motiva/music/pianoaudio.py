@@ -44,7 +44,7 @@ class PianoAudio:
         self.key_pressed = np.zeros(88, dtype=bool)
 
     def update(
-        self, piano_qpos: np.ndarray, piano_qvel: np.ndarray, episode_time: float
+        self, piano_qpos: np.ndarray, peak_piano_qvel: np.ndarray, episode_time: float
     ):
         currently_pressed = piano_qpos > self.press_thresholds
         new_onsets = currently_pressed & ~self.key_pressed
@@ -53,7 +53,7 @@ class PianoAudio:
         if not self.is_useless:
             for i in np.where(new_onsets)[0]:
                 velocity_norm = float(
-                    PianoAudio.compute_velocity_norm(float(piano_qvel[i]))
+                    PianoAudio.compute_velocity_norm(float(peak_piano_qvel[i]))
                 )
                 listening_velocity = round(
                     PianoAudio.MIN_AUDIO_VEL
@@ -65,7 +65,7 @@ class PianoAudio:
                     + (PianoAudio.MAX_AUDIO_VEL - PianoAudio.MIN_AUDIO_VEL)
                     * velocity_norm
                 )
-                # print(f"QVel: {piano_qvel[i]} || Vel: {midi_velocity}")
+                
                 if self.play_audio:
                     self.fluidsynth.noteon(
                         0, PianoAudio.NOTES_BEFORE_A1 + i, listening_velocity
