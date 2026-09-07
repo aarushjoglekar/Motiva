@@ -23,7 +23,7 @@ DISABLE_CUDA = False
 
 
 # TRAINING SETTINGS
-TRAINING = True
+TRAINING = False
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
@@ -86,6 +86,8 @@ def run_training(
                 "recall": [],
                 "dynamics_score": [],
                 "match_rate": [],
+                "bias": [],
+                "spread": []
             }
 
     next_validation = num_steps + VALIDATION_INTERVAL
@@ -299,7 +301,7 @@ def run_validation_episode(
         recall = None
         midi = env.save_piano_audio()
         if midi is not None:
-            precision, recall, f1, dynamics_score, match_rate = Song.from_midi(
+            precision, recall, f1, dynamics_score, match_rate, bias, spread = Song.from_midi(
                 name="", type="", should_add_start_buffer=False, midi=midi
             ).compare_to(ground_truth=song)
 
@@ -309,6 +311,8 @@ def run_validation_episode(
             eval_history[song.name]["recall"].append(recall)
             eval_history[song.name]["dynamics_score"].append(dynamics_score)
             eval_history[song.name]["match_rate"].append(match_rate)
+            eval_history[song.name]["bias"].append(bias)
+            eval_history[song.name]["spread"].append(spread)
 
         stats += f"\n  Song: {song.name}\n    Reward: {round(sum_reward, 2)}\n    F1: {round(f1, 2) if f1 is not None else None}, Precision: {round(precision, 2) if precision is not None else None}, Recall: {round(recall, 2) if recall is not None else None}\n    Dynamics Score: {dynamics_score}, Match Rate: {match_rate}"
 
@@ -362,10 +366,10 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     additional = ""
     midi = env.save_piano_audio()
     if midi is not None:
-        precision, recall, f1, dynamics_score, match_rate = Song.from_midi(
+        precision, recall, f1, dynamics_score, match_rate, bias, spread = Song.from_midi(
             name="", type="", should_add_start_buffer=False, midi=midi
         ).compare_to(ground_truth=TEST_SONG)
-        additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1} || Dynamics Score: {dynamics_score} || Match Rate: {match_rate}"
+        additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1} || Dynamics Score: {dynamics_score} || Match Rate: {match_rate} || Dynamics Error Bias: {bias} || Dynamics Error Spread: {spread}"
 
     print(f"Test Episode || Total Reward: {total_reward}{additional}")
 

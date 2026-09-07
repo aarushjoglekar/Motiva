@@ -122,12 +122,13 @@ class Song:
             else 0.0
         )
 
-        dynamics_score, match_rate = self.compare_to_dynamics(ground_truth=ground_truth)
+        dynamics_score, match_rate, bias, spread = self.compare_to_dynamics(ground_truth=ground_truth)
 
-        return precision, recall, f1, dynamics_score, match_rate
+        return precision, recall, f1, dynamics_score, match_rate, bias, spread
 
     def compare_to_dynamics(self, ground_truth: "Song"):
         dynamics_square_error = []
+        errors = []
         num_ground_truth_onsets = 0
         used_actual_notes = set()
 
@@ -168,7 +169,12 @@ class Song:
                 used_actual_notes.add((onset_pitch, match_time))
                 achieved_velocity = self.onset_velocity_data[match_time, onset_pitch]
                 target_velocity = pitches[onset_pitch]
+                errors.append(target_velocity - achieved_velocity)
                 dynamics_square_error.append((target_velocity - achieved_velocity) ** 2)
+
+        errors = np.array(errors)
+        bias = np.mean(errors)
+        spread = np.std(errors)
 
         dynamics_score = (
             1 - float(np.array(dynamics_square_error).mean() ** 0.5)
@@ -181,7 +187,7 @@ class Song:
             else 0
         )
 
-        return dynamics_score, match_rate
+        return dynamics_score, match_rate, bias, spread
 
     def to_midi(self):
         ticks_per_beat = 480
