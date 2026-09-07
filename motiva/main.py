@@ -17,13 +17,15 @@ import matplotlib.pyplot as plt
 
 ### SETTINGS
 # GENERAL SETTINGS
-MODEL_NAME = "velocity_dynamics/twinkle_twinkle_little_star_both_obs"
+MODEL_NAME = (
+    "velocity_dynamics/peak_qvel_both_obs/twinkle_twinkle_little_star_other_hyperparams"
+)
 SEED = 42
 DISABLE_CUDA = False
 
 
 # TRAINING SETTINGS
-TRAINING = False
+TRAINING = True
 NUM_STEPS = 5000000
 VALIDATION_INTERVAL = 10000
 SAVE_TO_MIDI_VALID = False
@@ -87,7 +89,7 @@ def run_training(
                 "dynamics_score": [],
                 "match_rate": [],
                 "bias": [],
-                "spread": []
+                "spread": [],
             }
 
     next_validation = num_steps + VALIDATION_INTERVAL
@@ -162,15 +164,16 @@ def run_training(
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     for song_key, history in eval_history.items():
         ax1.plot(history["steps"], history["f1"], label=song_key)
-        
+
         valid = [
-            (step, dynamics_score) for step, dynamics_score in zip(history["steps"], history["dynamics_score"])
+            (step, dynamics_score)
+            for step, dynamics_score in zip(history["steps"], history["dynamics_score"])
             if dynamics_score is not None
         ]
         if len(valid) != 0:
             dyn_steps, dyn_scores = zip(*valid)
             ax2.plot(dyn_steps, dyn_scores, label=song_key)
-        
+
     ax1.set_xlabel("Steps")
     ax1.set_ylabel("F1 Score")
     ax1.set_title("F1 Score over Training")
@@ -180,7 +183,7 @@ def run_training(
     ax2.set_ylabel("Dynamics Score")
     ax2.set_title("Dynamics Score over Training")
     ax2.legend()
-    
+
     fig.tight_layout()
     fig.savefig(os.path.join(model_path, "eval_history.png"))
     plt.close(fig)
@@ -301,9 +304,11 @@ def run_validation_episode(
         recall = None
         midi = env.save_piano_audio()
         if midi is not None:
-            precision, recall, f1, dynamics_score, match_rate, bias, spread = Song.from_midi(
-                name="", type="", should_add_start_buffer=False, midi=midi
-            ).compare_to(ground_truth=song)
+            precision, recall, f1, dynamics_score, match_rate, bias, spread = (
+                Song.from_midi(
+                    name="", type="", should_add_start_buffer=False, midi=midi
+                ).compare_to(ground_truth=song)
+            )
 
             eval_history[song.name]["steps"].append(num_steps)
             eval_history[song.name]["f1"].append(f1)
@@ -314,7 +319,7 @@ def run_validation_episode(
             eval_history[song.name]["bias"].append(bias)
             eval_history[song.name]["spread"].append(spread)
 
-        stats += f"\n  Song: {song.name}\n    Reward: {round(sum_reward, 2)}\n    F1: {round(f1, 2) if f1 is not None else None}, Precision: {round(precision, 2) if precision is not None else None}, Recall: {round(recall, 2) if recall is not None else None}\n    Dynamics Score: {dynamics_score}, Match Rate: {match_rate}"
+        stats += f"\n  Song: {song.name}\n    Reward: {round(sum_reward, 2)}\n    F1: {round(f1, 2) if f1 is not None else None}, Precision: {round(precision, 2) if precision is not None else None}, Recall: {round(recall, 2) if recall is not None else None}\n    Dynamics Score: {dynamics_score}, Match Rate: {match_rate}, Dynamics Error Bias: {bias}, Dynamics Error Spread: {spread}"
 
     return stats
 
@@ -366,9 +371,11 @@ def run_test(model: SAC_DROQ, env: Environment, model_path: str, device: str):
     additional = ""
     midi = env.save_piano_audio()
     if midi is not None:
-        precision, recall, f1, dynamics_score, match_rate, bias, spread = Song.from_midi(
-            name="", type="", should_add_start_buffer=False, midi=midi
-        ).compare_to(ground_truth=TEST_SONG)
+        precision, recall, f1, dynamics_score, match_rate, bias, spread = (
+            Song.from_midi(
+                name="", type="", should_add_start_buffer=False, midi=midi
+            ).compare_to(ground_truth=TEST_SONG)
+        )
         additional = f" || Precision: {precision} || Recall: {recall} || F1: {f1} || Dynamics Score: {dynamics_score} || Match Rate: {match_rate} || Dynamics Error Bias: {bias} || Dynamics Error Spread: {spread}"
 
     print(f"Test Episode || Total Reward: {total_reward}{additional}")

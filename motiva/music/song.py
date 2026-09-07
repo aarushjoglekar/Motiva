@@ -173,8 +173,8 @@ class Song:
                 dynamics_square_error.append((target_velocity - achieved_velocity) ** 2)
 
         errors = np.array(errors)
-        bias = np.mean(errors)
-        spread = np.std(errors)
+        bias = float(np.mean(errors)) if len(errors) != 0 else None
+        spread = float(np.std(errors)) if len(errors) != 0 else None
 
         dynamics_score = (
             1 - float(np.array(dynamics_square_error).mean() ** 0.5)
